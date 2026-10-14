@@ -64,7 +64,7 @@ export async function userAdministrationChecks({m,check,query,invoke,loginAdmin,
     assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'X',email:person.email})).status,400);
     assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:'invalid'})).status,400);
     assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:accounts.other.email})).status,409);
-    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:process.env.PRIMARK_ADMIN_EMAIL})).status,409);
+    assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'New name',email:process.env.F2T_PLATFORM_ADMIN_EMAIL})).status,409);
     const before=await query('SELECT * FROM learners WHERE id=?',person.id).first();
     assert.equal((await update(accounts.store.cookie,person,{action:'details',name:'  New   name  ',email:person.email})).status,200);
     const current=await find(person.id);assert.equal(current.name,'New name');

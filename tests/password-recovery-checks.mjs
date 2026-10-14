@@ -52,14 +52,14 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
     });
     await check('Platform admin recovery remains separate from a learner with the same email and revokes old admin sessions',async()=>{
       await query('DELETE FROM auth_limits').run();
-      const adminEmail=process.env.PRIMARK_ADMIN_EMAIL, oldAdmin=await loginAdmin();
+      const adminEmail=process.env.F2T_PLATFORM_ADMIN_EMAIL, oldAdmin=await loginAdmin();
       // Prior authentication checks seeded an ordinary learner with the admin email.
       const learner=await query('SELECT * FROM learners WHERE email=?',adminEmail).first();assert(learner);
       const learnerHash=learner.password_hash;
       await request(adminEmail);assert.equal(tokens().length,2);const [adminToken,learnerToken]=tokens();
       assert.equal((await reset(adminToken,'Only-8-chars')).status,400);
       assert.equal((await reset(adminToken,'New-platform-secret-123')).status,200);
-      assert.equal((await login(adminEmail,process.env.PRIMARK_ADMIN_PASSWORD)).status,401);
+      assert.equal((await login(adminEmail,process.env.F2T_PLATFORM_ADMIN_PASSWORD)).status,401);
       const newAdmin=await login(adminEmail,'New-platform-secret-123');assert.equal(newAdmin.status,200);assert.equal((await newAdmin.json()).returnTo,'/?view=report');
       const state=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,oldAdmin)).json();assert.equal(state.platformAdmin,false);
       assert.equal((await query('SELECT password_hash FROM learners WHERE id=?',learner.id).first()).password_hash,learnerHash);
@@ -69,10 +69,10 @@ export async function passwordRecoveryChecks({m,check,query,invoke,loginAdmin,co
       await query('DELETE FROM admin_passwords').run();
     });
     await check('Hosting credential rotation invalidates pending admin recovery links',async()=>{
-      await query('DELETE FROM auth_limits').run();await request(process.env.PRIMARK_ADMIN_EMAIL);const token=tokens()[0];
-      const old=process.env.PRIMARK_ADMIN_PASSWORD;
-      try{process.env.PRIMARK_ADMIN_PASSWORD='Rotated-hosting-secret-123';assert.equal((await reset(token)).status,400);assert.equal((await login(process.env.PRIMARK_ADMIN_EMAIL,process.env.PRIMARK_ADMIN_PASSWORD)).status,200);}
-      finally{process.env.PRIMARK_ADMIN_PASSWORD=old;}
+      await query('DELETE FROM auth_limits').run();await request(process.env.F2T_PLATFORM_ADMIN_EMAIL);const token=tokens()[0];
+      const old=process.env.F2T_PLATFORM_ADMIN_PASSWORD;
+      try{process.env.F2T_PLATFORM_ADMIN_PASSWORD='Rotated-hosting-secret-123';assert.equal((await reset(token)).status,400);assert.equal((await login(process.env.F2T_PLATFORM_ADMIN_EMAIL,process.env.F2T_PLATFORM_ADMIN_PASSWORD)).status,200);}
+      finally{process.env.F2T_PLATFORM_ADMIN_PASSWORD=old;}
     });
     await check('Recovery email and reset link preserve supported languages and reject unknown locale values',async()=>{
       for(const [lang,expected,subject] of [['it','it','Reimposta la password Primark'],['ar','ar','إعادة تعيين كلمة مرور Primark'],['unsupported','en','Reset your Primark password']]){

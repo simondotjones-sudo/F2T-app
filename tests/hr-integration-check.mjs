@@ -30,6 +30,15 @@ try{
  await q("INSERT INTO hr_credentials(id,name,token_hash,created_by,expires_at) VALUES($1,'Payroll',$2,'test',now()+interval '1 year')",key,m.digest(token));
  const store=await one('SELECT id FROM organisation_stores WHERE active AND deleted_at IS NULL LIMIT 1');
  const starter={eventId:'start-1',employeeId:'0000123',action:'starter',effectiveDate:today,reason:'Payroll starter',name:'Test Starter',email:'hr-test@example.com',storeId:store.id};
+ await check('HR cannot register the configured F2T platform administrator as an employee',async()=>{
+  const saved=process.env.F2T_PLATFORM_ADMIN_EMAIL;
+  try{
+   process.env.F2T_PLATFORM_ADMIN_EMAIL='  RESERVED-ADMIN@EXAMPLE.TEST  ';
+   const result=await m.processHrEvent(key,{...starter,eventId:'reserved-admin',employeeId:'reserved-admin',email:'reserved-admin@example.test'},true);
+   assert.equal(result.status,'failed');assert.match(result.error,/Email is already registered/);
+   assert.equal((await q("SELECT id FROM learners WHERE email='reserved-admin@example.test'")).length,0);
+  }finally{if(saved===undefined)delete process.env.F2T_PLATFORM_ADMIN_EMAIL;else process.env.F2T_PLATFORM_ADMIN_EMAIL=saved;}
+ });
  await check('dry run validates without creating employee or event',async()=>{assert.equal((await m.processHrEvent(key,starter,true)).status,'valid');assert.equal((await q("SELECT id FROM learners WHERE workday_id='0000123'")).length,0);assert.equal((await q('SELECT id FROM hr_events')).length,0);});
  let learner;
  await check('starter creates existing learner record and idempotent replay',async()=>{const r=await m.processHrEvent(key,starter);assert.equal(r.status,'applied');learner=r.learnerId;assert.ok(learner);assert.equal((await m.processHrEvent(key,starter)).replayed,true);assert.equal((await q("SELECT id FROM learners WHERE workday_id='0000123'")).length,1);assert.equal((await one('SELECT hr_managed,password_hash FROM learners WHERE id=$1',learner)).password_hash,null);});

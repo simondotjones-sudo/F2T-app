@@ -44,11 +44,11 @@ export async function platformOperatorChecks({m,check,q,query,run,call,req,cooki
   for(const client of ['primark','eazysafe-internal'])assert.equal((await call(m.clients,'GET','/api/admin/clients',null,client,namedCookie)).status,200);
   assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',operator)).status,200);
   assert.equal((await manage({action:'disable',email},namedCookie)).status,409);
-  assert.equal((await manage({action:'disable',email:process.env.PRIMARK_ADMIN_EMAIL},namedCookie)).status,409);
-  await good(await call(m.session,'POST','/api/admin/session',{email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD}));
+  assert.equal((await manage({action:'disable',email:process.env.F2T_PLATFORM_ADMIN_EMAIL},namedCookie)).status,409);
+  await good(await call(m.session,'POST','/api/admin/session',{email:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD}));
   assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',namedCookie)).status,200);
-  const saved=process.env.PRIMARK_ADMIN_PASSWORD;delete process.env.PRIMARK_ADMIN_PASSWORD;
-  try{assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',namedCookie)).status,200);assert.equal((await login()).status,200);}finally{process.env.PRIMARK_ADMIN_PASSWORD=saved;}
+  const saved=process.env.F2T_PLATFORM_ADMIN_PASSWORD;delete process.env.F2T_PLATFORM_ADMIN_PASSWORD;
+  try{assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',namedCookie)).status,200);assert.equal((await login()).status,200);}finally{process.env.F2T_PLATFORM_ADMIN_PASSWORD=saved;}
  });
  await check('Replacement codes reset a named password and invalidate sessions; recovery uses its own fingerprint',async()=>{
   const recoveryCode=await good(await manage({action:'code',email}));

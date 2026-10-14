@@ -30,7 +30,7 @@ export async function adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFro
       assert.equal((await query('SELECT COUNT(*) n FROM learners').first()).n,before);
     }
     assert.equal((await create(bootstrap,{email:registered.email})).status,409);
-    assert.equal((await create(bootstrap,{email:process.env.PRIMARK_ADMIN_EMAIL})).status,409);
+    assert.equal((await create(bootstrap,{email:process.env.F2T_PLATFORM_ADMIN_EMAIL})).status,409);
     assert.equal((await create(bootstrap,{accountType:'learner',workdayId:'account-0001'})).status,409);
   });
   await check('Platform admins create every admin level atomically with attribution and hashed passwords',async()=>{
@@ -43,7 +43,7 @@ export async function adminOnlyChecks({m,check,query,invoke,loginAdmin,cookieFro
       const row=await query('SELECT * FROM learners WHERE id=?',person.id).first();
       assert.notEqual(row.password_hash,password);assert(await m.learnerAuth.verifyPassword(password,row.password_hash));
       const grant=await query(`SELECT assigned_by FROM ${role==='platform'?'platform_admins':'reporting_access'} WHERE learner_id=?`,person.id).first();
-      assert.equal(grant.assigned_by,process.env.PRIMARK_ADMIN_EMAIL);
+      assert.equal(grant.assigned_by,process.env.F2T_PLATFORM_ADMIN_EMAIL);
       assert.equal(await query('SELECT * FROM learner_inductions WHERE learner_id=?',person.id).first(),null);
     }
   });

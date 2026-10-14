@@ -20,7 +20,7 @@ const db=new NetlifyDB({logger:()=>{}});const url=await db.start();
 for(const name of readdirSync('netlify/database/migrations').sort().filter(n=>!n.includes('sample-learner-induction-completion')))await db.exec(readFileSync(`netlify/database/migrations/${name}/migration.sql`,'utf8'));
 await db.exec('SET search_path TO lms_tenant_2,public; UPDATE organisation_settings SET credits_enabled=false; RESET search_path;');
 const log=createWriteStream('/tmp/operators-ui-next.log');
-const fixtureEnv={...process.env,NETLIFY_DB_URL:url,PRIMARK_ADMIN_EMAIL:'operator@example.invalid',PRIMARK_ADMIN_PASSWORD:'FictionalNativeBrowserPassword2026!',LMS_EMAIL_DELIVERY:'disabled',LMS_BACKGROUND_JOBS:'disabled'};
+const fixtureEnv={...process.env,NETLIFY_DB_URL:url,F2T_PLATFORM_ADMIN_EMAIL:'operator@example.invalid',F2T_PLATFORM_ADMIN_PASSWORD:'FictionalNativeBrowserPassword2026!',LMS_EMAIL_DELIVERY:'disabled',LMS_BACKGROUND_JOBS:'disabled'};
 // Production rendering avoids dev HMR reloading a form while a new API route compiles.
 const compile=spawn('node',['node_modules/next/dist/bin/next','build','--webpack'],{cwd:fixture,env:fixtureEnv,stdio:['ignore','pipe','pipe']});compile.stdout.pipe(log,{end:false});compile.stderr.pipe(log,{end:false});
 if(await new Promise(resolve=>compile.once('exit',resolve))!==0){await db.stop();log.close();rmSync(fixture,{recursive:true,force:true});throw Error('Browser fixture build failed');}

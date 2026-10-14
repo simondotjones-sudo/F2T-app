@@ -6,7 +6,7 @@ import {learnerOnlySql} from '@/lib/account-type';
 import {validateDepartment} from '@/lib/registration-settings';
 import {validateJobRole} from '@/lib/job-roles';
 import {runtimeEnv} from '@/lib/runtime-env';
-const reservedEmail=()=>runtimeEnv('PRIMARK_ADMIN_EMAIL').trim().toLowerCase();
+const reservedEmail=()=>runtimeEnv('F2T_PLATFORM_ADMIN_EMAIL').trim().toLowerCase();
 import {hrEmployee,type HrEmployee} from '@/lib/hr-schema';
 export const digest=(s:string)=>createHash('sha256').update(s).digest('hex');
 type Tx=Parameters<Parameters<typeof inTransaction>[0]>[0];

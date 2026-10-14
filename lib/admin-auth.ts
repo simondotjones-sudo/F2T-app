@@ -8,8 +8,8 @@ import { verifyPassword } from '@/lib/learner-auth';
 
 export const ADMIN_COOKIE = 'primark_admin';
 export function credentials() {
-  const email = runtimeEnv('PRIMARK_ADMIN_EMAIL').trim().toLowerCase();
-  const password = runtimeEnv('PRIMARK_ADMIN_PASSWORD');
+  const email = runtimeEnv('F2T_PLATFORM_ADMIN_EMAIL').trim().toLowerCase();
+  const password = runtimeEnv('F2T_PLATFORM_ADMIN_PASSWORD');
   return email && password.length >= 16 ? { email, password } : null;
 }
 export function credentialFingerprint() {

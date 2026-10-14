@@ -16,7 +16,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {build} from 'esbuild';
 import {pglitePool} from './tenant-fixture.mjs';
 const require=createRequire(import.meta.url),pg=new PGlite(),context=new AsyncLocalStorage();
-const env={...process.env};process.env.PRIMARK_ADMIN_EMAIL='operator@test.invalid';process.env.PRIMARK_ADMIN_PASSWORD='fixture-platform-password-long';
+const env={...process.env};process.env.F2T_PLATFORM_ADMIN_EMAIL='operator@test.invalid';process.env.F2T_PLATFORM_ADMIN_PASSWORD='fixture-platform-password-long';
 const migrations=readdirSync('netlify/database/migrations').sort();
 for(const n of migrations.filter(n=>n<'20261011170000'))await pg.exec(readFileSync(`netlify/database/migrations/${n}/migration.sql`,'utf8'));
 await pg.exec("INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES('preserved','Original Primark learner','original@test.invalid','unused','original','Ireland','2026-10-11')");
@@ -151,7 +151,7 @@ try{
   assert.equal((await call(m.prototype,'POST','/api/prototype',{action:'view',key:'welcome'},'eazysafe-internal',internalCookie)).status,403);
  });
  await check('Platform operators manage clients; client administrators and learners cannot',async()=>{
-  const login=await call(m.session,'POST','/api/admin/session',{email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD},'eazysafe-internal');assert.equal(login.status,200,await login.clone().text());operator=cookieFrom(login,'primark_admin');
+  const login=await call(m.session,'POST','/api/admin/session',{email:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD},'eazysafe-internal');assert.equal(login.status,200,await login.clone().text());operator=cookieFrom(login,'primark_admin');
   assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',operator)).status,200);
   assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',primaryCookie)).status,403);
   await q("INSERT INTO public.platform_admins(learner_id,assigned_by,updated_at) VALUES($1,'test',now()::text)",[primary.id]);
