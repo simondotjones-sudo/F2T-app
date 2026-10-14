@@ -120,6 +120,20 @@ try{
   }finally{await pg.exec('ROLLBACK');}
   await pg.exec(sql);
  });
+ await check('An existing Fit2Trade client is retained and EazySafe is removed only from the active list',async()=>{
+  await pg.exec('BEGIN');
+  try{
+   const [{id}]=await q("SELECT public.lms_create_client('Fit2Trade','fit2trade','/branding/primark-logo.svg','#123456','fixture') AS id");
+   await pg.exec("INSERT INTO lms_tenant_2.learners(id,name,email,code_hash,store_id,country,entered_at) VALUES('retained-legacy','Retained learner','retained@test.invalid','unused','eazysafe-internal','Ireland',now()::text)");
+   const sql=readFileSync(`netlify/database/migrations/${brandingMigration}/migration.sql`,'utf8');await pg.exec(sql);
+   const fit=await m.tenant.tenantBySlug('fit2trade');assert.equal(fit.id,Number(id));assert.equal(fit.theme_color,'#2E6052');assert.equal(fit.logo_url,'/branding/primark-logo.svg');
+   assert.equal((await q('SELECT active FROM public.lms_clients WHERE id=2'))[0].active,false);
+   assert.equal((await q("SELECT name FROM lms_tenant_2.learners WHERE id='retained-legacy'"))[0].name,'Retained learner');
+   assert.equal((await query('fit2trade','SELECT * FROM learners')).length,0);
+   assert.equal((await m.tenant.tenantBySlug('eazysafe-internal')).id,Number(id));
+   await pg.exec(sql);assert.equal((await m.tenant.tenantBySlug('fit2trade')).revision,fit.revision);
+  }finally{await pg.exec('ROLLBACK');await q("SELECT setval(pg_get_serial_sequence('public.lms_clients','id'),(SELECT max(id) FROM public.lms_clients),true)");}
+ });
  await check('HR credentials and employee writes are tenant scoped',async()=>{
   assert.equal((await call(m.hrAdmin,'GET','/api/admin/integrations',undefined,'primark')).status,403);
   const token='hr_'+'d'.repeat(64);
