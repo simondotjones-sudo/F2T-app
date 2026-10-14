@@ -1,6 +1,6 @@
 # Fit2Trade App
 
-Release **1.14.10.26.90** applies Fit2Trade branding to this independent multi-client application.
+Release **1.14.10.26.91** anchors client-card actions to the bottom corners and uses the supplied black Fit2Trade logo as the default platform wordmark.
 
 | Client | Portal | Default branding |
 | --- | --- | --- |
