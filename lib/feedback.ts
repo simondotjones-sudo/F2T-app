@@ -31,12 +31,12 @@ export function validateFeedbackAnswers(questions:FeedbackQuestion[],input:unkno
 export async function saveFeedbackTemplate(input:FeedbackTemplate,actor:{email:string;platformAdmin:boolean},operator:boolean){
  await requireFeature('course_feedback');
  if(typeof input.name!=='string'||!input.name.trim()||input.name.length>120||!['anonymous','named'].includes(input.mode)||typeof input.shared!=='boolean')throw new CourseError('Check the survey details.');
- if(input.shared&&!operator)throw new CourseError('Shared surveys are managed by EazySAFE.',403);
+ if(input.shared&&!operator)throw new CourseError('Shared surveys are managed by Fit2Trade.',403);
  const questions=validateFeedback(input.questions),id=input.id||crypto.randomUUID();
  return inTransaction(async tx=>{
   const old=(await tx.query('SELECT * FROM feedback_surveys WHERE id=$1 FOR UPDATE',[id])).rows[0];
   if(input.id&&!old)throw new CourseError('Survey not found.',404);
-  if(old?.shared&&!operator)throw new CourseError('Shared surveys are managed by EazySAFE.',403);
+  if(old?.shared&&!operator)throw new CourseError('Shared surveys are managed by Fit2Trade.',403);
   if(old&&old.revision!==input.revision)throw new CourseError('This survey changed. Reload before saving.',409);
   if(old&&old.mode!==input.mode&&(await tx.query('SELECT 1 FROM feedback_responses WHERE survey_id=$1 LIMIT 1',[id])).rows.length)throw new CourseError('Feedback response mode is locked.',409);
   const revision=Number(old?.revision||0)+1;
@@ -67,7 +67,7 @@ export async function attachFeedback(request:NextRequest,b:any,operator:boolean)
   const table=b.kind==='course'?'courses':'live_trainings';
   if(!(await tx.query(`SELECT id FROM ${table} WHERE id=$1 FOR UPDATE`,[b.targetId])).rows.length)throw new CourseError('Course not found.',404);
   // Shared catalogue courses require a global operator, not a client platform grant.
-  if(b.kind==='course'&&!operator&&(await tx.query('SELECT 1 FROM catalogue_subscriptions WHERE course_id=$1',[b.targetId])).rows.length)throw new CourseError('Shared surveys are managed by EazySAFE.',403);
+  if(b.kind==='course'&&!operator&&(await tx.query('SELECT 1 FROM catalogue_subscriptions WHERE course_id=$1',[b.targetId])).rows.length)throw new CourseError('Shared surveys are managed by Fit2Trade.',403);
   await tx.query("SELECT set_config('app.audit_actor',$1,true)",[actor.email]);
   if(!b.surveyId){await tx.query('DELETE FROM feedback_bindings WHERE kind=$1 AND target_id=$2',[b.kind,b.targetId]);return {ok:true};}
   if(!(await tx.query('SELECT id FROM feedback_surveys WHERE id=$1 FOR UPDATE',[b.surveyId])).rows.length)throw new CourseError('Survey not found.',404);

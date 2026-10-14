@@ -1,13 +1,13 @@
-# EazySAFE LMS
+# Fit2Trade App
 
-Release **1.11.10.26.63** adds multiple clients to the independent EazySAFE application.
+Release **1.14.10.26.90** applies Fit2Trade branding to this independent multi-client application.
 
 | Client | Portal | Default branding |
 | --- | --- | --- |
 | 1 — Primark | `/?client=primark` | Primark wordmark and blue |
-| 2 — EazySafe Internal | `/?client=eazysafe-internal` | EazySAFE logo and red |
+| 2 — Fit2Trade | `/?client=fit2trade` | Fit2Trade logo and `#2E6052` |
 
-A fresh visit without a client selection opens EazySafe Internal. The global operator can open **Profile → Clients** to add clients, upload logos, choose theme colours and copy portal links. Enter a client to configure its sites, administrators, courses and assignments. The existing configured operator credentials continue to work. Administrators created within a client stay within that client.
+A fresh visit without a client selection opens Fit2Trade. The global operator can open **Profile → Clients** to add clients, upload logos, choose theme colours and copy portal links. Enter a client to configure its sites, administrators, courses and assignments. The existing configured operator credentials continue to work. Administrators created within a client stay within that client.
 
 Client 1 keeps this application's existing Primark data and uploaded course. Client 2 starts with one internal site and no learner/course history. Additional clients start with clean configuration defaults and no sites. Each has independent database permissions, records and file namespaces. The original Primark application is unaffected.
 
@@ -15,7 +15,7 @@ Client 1 keeps this application's existing Primark data and uploaded course. Cli
 
 Repository: `simondotjones-sudo/F2T-app` · Netlify site: `fit2trade-app`.
 
-This independent Fit2Trade clone uses its own platform administrator settings. Historical release notes below describe the EazySAFE source baseline.
+This independent Fit2Trade clone uses its own platform administrator settings. Archived project documents describe the EazySAFE source baseline.
 
 `netlify.toml` builds with `pnpm build`, publishes `.next` and uses Node 22. The committed migration is applied by Netlify's database integration. Use this project's own database/storage; never reuse the original Primark project's connection or credentials. Preview deployments must use an isolated database branch.
 

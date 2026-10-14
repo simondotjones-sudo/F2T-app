@@ -31,7 +31,7 @@ export function ProfileContent({ account, view, filter, onView, onFilter, onSign
     <PwaInstallButton/>
     <div className="profile-language"><span>{t('Language')}</span><LanguagePicker/></div>
     <button type="button" className="profile-signout" disabled={busy} onClick={onSignOut}><LogOut size={17}/>{t(busy ? 'Signing out…' : 'Sign out')}</button>
-    <div className="profile-version">{t('Primark Version').replaceAll('Primark','EazySAFE')}{' '}<bdi>{APP_VERSION}</bdi></div>
+    <div className="profile-version">{t('Primark Version').replaceAll('Primark','Fit2Trade')}{' '}<bdi>{APP_VERSION}</bdi></div>
   </>;
 }
 

@@ -173,7 +173,7 @@ export default function Home() {
           {screen==="pass"&&(complete?<Pass learner={learner} qr={qr} lang={lang}/>:<div className="paper result"><ShieldCheck/><h2>{t("Your pass is almost ready")}</h2><p>{t("View all six chapters and pass the assessment.")}</p><Button onClick={()=>setScreen("home")}>{t("Back to induction")}</Button></div>)}
         </div></div>
     : <TrainingReporting key={account?.email||"report"} access={reportingAccess} platformAdmin={platformAdmin} filter={{role,country:scopeCountry,site:scopeSite,...(scopeUnit!==undefined?{unit:scopeUnit}:{}),...(scopeGroupBy!==undefined?{groupBy:scopeGroupBy}:{})}} onFilterChange={next=>{setRole(next.role);setScopeUnit(next.unit);setScopeGroupBy(next.groupBy);setScopeCountry(next.country);setScopeSite(next.site);}} lang={lang}/>}
-    </main><footer className="app-footer"><span>{t("Powered by EazySafe")}</span></footer>
+    </main><footer className="app-footer"><span>{t("Powered by Fit2Trade")}</span></footer>
   </div>;
 }
 

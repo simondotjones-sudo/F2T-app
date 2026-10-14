@@ -11,7 +11,7 @@ import {BrandingProvider} from '@/components/branding-provider';
 import {currentTenant} from '@/lib/tenant-context';
 import {publicBrand,themeVariables} from '@/lib/tenant-types';
 export const dynamic='force-dynamic';
-export async function generateMetadata():Promise<Metadata>{const b=await currentTenant();return {title:b.id===1?'Primark Safety Passport':b.name+' | EazySAFE LMS',description:'Your learning, progress and certificates in one place.',manifest:portalUrl(b.slug,'/api/pwa/manifest'),applicationName:pwaName(b),appleWebApp:{capable:true,title:pwaName(b),statusBarStyle:'default'},icons:{icon:'/favicon.svg',shortcut:'/favicon.svg',apple:[{url:pwaIconUrl(b,180),sizes:'180x180',type:'image/png'}]}};}
+export async function generateMetadata():Promise<Metadata>{const b=await currentTenant();return {title:b.id===1?'Primark Safety Passport':b.name+' | Fit2Trade LMS',description:'Your learning, progress and certificates in one place.',manifest:portalUrl(b.slug,'/api/pwa/manifest'),applicationName:pwaName(b),appleWebApp:{capable:true,title:pwaName(b),statusBarStyle:'default'},icons:{icon:'/favicon.svg',shortcut:'/favicon.svg',apple:[{url:pwaIconUrl(b,180),sizes:'180x180',type:'image/png'}]}};}
 export async function generateViewport():Promise<Viewport>{return {width:'device-width',initialScale:1,themeColor:(await currentTenant()).theme_color};}
 export default async function RootLayout({children}:Readonly<{children:React.ReactNode}>){
  const brand=publicBrand(await currentTenant());

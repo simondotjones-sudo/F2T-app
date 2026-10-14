@@ -2,10 +2,12 @@ import type {Language} from './i18n';
 export type LocationTerm='site'|'store';
 export type ClientBrand={id:number;name:string;slug:string;logo_url:string;theme_color:string;revision:number;default_language?:Language;location_term?:LocationTerm|null;login_background?:string|null};
 export type Tenant=ClientBrand&{schema_name:string;role_name:string;active:boolean;registration_code:string};
-export const DEFAULT_BRAND:ClientBrand={id:2,name:'EazySafe Internal',slug:'eazysafe-internal',logo_url:'/branding/eazysafe-logo.png',theme_color:'#e8002a',revision:1};
-export function publicBrand(t:ClientBrand):ClientBrand{return {id:Number(t.id),name:t.name,slug:t.slug,logo_url:t.logo_url,theme_color:t.theme_color,revision:t.revision,login_background:t.login_background,default_language:t.default_language??'en',location_term:t.location_term??null};}
-export function portalUrl(slug:string,path='/'){const destination=new URL(path,'https://local.invalid');destination.searchParams.set('client',slug);return destination.pathname+destination.search+destination.hash;}
-export function validLogo(value:unknown):value is string{return typeof value==='string'&&(value==='/branding/eazysafe-logo.png'||value==='/branding/primark-logo.svg'||(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value)&&value.length<=700000));}
+export const DEFAULT_BRAND:ClientBrand={id:2,name:'Fit2Trade',slug:'fit2trade',logo_url:'/branding/fit2trade-logo.svg',theme_color:'#2E6052',revision:2};
+// Keep the registry identifier and old links stable; expose the Fit2Trade portal address.
+export function canonicalClientSlug(slug:string){return slug==='eazysafe-internal'?DEFAULT_BRAND.slug:slug;}
+export function publicBrand(t:ClientBrand):ClientBrand{return {id:Number(t.id),name:t.name,slug:canonicalClientSlug(t.slug),logo_url:t.logo_url,theme_color:t.theme_color,revision:t.revision,login_background:t.login_background,default_language:t.default_language??'en',location_term:t.location_term??null};}
+export function portalUrl(slug:string,path='/'){const destination=new URL(path,'https://local.invalid');destination.searchParams.set('client',canonicalClientSlug(slug));return destination.pathname+destination.search+destination.hash;}
+export function validLogo(value:unknown):value is string{return typeof value==='string'&&(value==='/branding/fit2trade-logo.svg'||value==='/branding/eazysafe-logo.png'||value==='/branding/primark-logo.svg'||(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value)&&value.length<=700000));}
 export function themeVariables(color:string){
  const safe=/^#[a-f\d]{6}$/i.test(color)?color:DEFAULT_BRAND.theme_color;
  const channel=[1,3,5].map(i=>parseInt(safe.slice(i,i+2),16));

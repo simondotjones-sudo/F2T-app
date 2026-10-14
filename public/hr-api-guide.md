@@ -1,4 +1,4 @@
-# EazySAFE HR / payroll API v1
+# Fit2Trade HR / payroll API v1
 
 Enable **HR & payroll integration** and **Joiner, mover and leaver handling** in Settings. Organisation and client platform admins manage credentials at Integrations. Each credential is restricted to that client's HR endpoints; it cannot sign into the app, grant permissions, read training records, or access another client.
 

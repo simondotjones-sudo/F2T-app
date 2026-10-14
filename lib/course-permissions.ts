@@ -17,5 +17,5 @@ export async function requireCourseAdministrator(request?:NextRequest){
 }
 export async function requireEditableCourse(actor:{platformAdmin:boolean},id:string){
  if(!actor.platformAdmin&&await db().prepare('SELECT 1 FROM catalogue_subscriptions WHERE course_id=?').bind(id).first())
-  throw new CourseError('Shared courses are managed by EazySAFE.',403);
+  throw new CourseError('Shared courses are managed by Fit2Trade.',403);
 }

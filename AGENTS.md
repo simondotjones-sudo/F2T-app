@@ -1,6 +1,6 @@
-# EazySAFE multi-client development
+# Fit2Trade multi-client development
 
-- Keep work in `simondotjones-sudo/eazysafe-LC4`. Do not modify the original Primark repository, site, database or storage.
+- Keep work in `simondotjones-sudo/F2T-app`. Do not modify the original Primark repository, site, database or storage.
 - Application data queries use `lib/database.ts`, which applies the selected client's restricted role and schema in a transaction. Never bypass it with the raw driver in a route or workflow.
 - `lib/control-database.ts` is privileged: use it only for fixed SQL against the client registry and global operator authentication. Require `getPlatformOperator()` before client management. Client `platform_admins` are scoped to their own client.
 - Do not call control-plane queries from within a client transaction. Resolve global credentials first; send emails after committing the authorised operation. Preserve successful-operation audit semantics.

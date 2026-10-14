@@ -96,7 +96,7 @@ export async function distributeCatalogueRelease(source:Tenant,target:Tenant,rel
    await tx.query(`INSERT INTO feedback_bindings(kind,target_id,survey_id) VALUES('course',$1,$2) ON CONFLICT(kind,target_id) DO UPDATE SET survey_id=excluded.survey_id`,[courseId,surveyId]);
    if((await tx.query("SELECT feature_enabled('course_feedback') AS enabled")).rows[0].enabled)await backfillFeedback(tx,'course',courseId);
   }else if(Object.hasOwn(s,'feedback'))await tx.query("DELETE FROM feedback_bindings WHERE kind='course' AND target_id=$1",[courseId]);
-  await publishCourseVersion(tx,courseId,`EazySAFE catalogue version ${release.version}`,false);
+  await publishCourseVersion(tx,courseId,`Fit2Trade catalogue version ${release.version}`,false);
   return {courseId};
  }));
 }

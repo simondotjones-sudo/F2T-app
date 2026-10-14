@@ -5,7 +5,7 @@ import { learnerForSession } from '@/lib/server';
 import { certificatesFor } from '@/lib/certificate-server';
 import './certificates.css';
 export const dynamic='force-dynamic';
-export const metadata={title:'My certificates | EazySAFE',robots:{index:false,follow:false}};
+export const metadata={title:'My certificates | Fit2Trade',robots:{index:false,follow:false}};
 export default async function Page() {
   const learner=await learnerForSession((await cookies()).get('primark_session')?.value);
   if(!learner || learner.admin_only)redirect('/');
