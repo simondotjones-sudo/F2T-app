@@ -27,7 +27,7 @@ const context=new AsyncLocalStorage(), maps=new Map();
 const pool=pglitePool(pg);
 function getStore(options){const name=typeof options==='string'?options:options.name;if(!maps.has(name))maps.set(name,new Map());const data=maps.get(name);return {async set(k,v){data.set(k,await new Response(v).arrayBuffer());},async setJSON(k,v){data.set(k,structuredClone(v));},async get(k,o){const v=data.get(k);return v===undefined?null:o?.type==='json'?structuredClone(v):v.slice(0);}};}
 globalThis.__migrationTest={pool,getStore,cookie:()=>context.getStore()?.cookie||''};
-process.env.PRIMARK_ADMIN_EMAIL='admin@example.test';process.env.PRIMARK_ADMIN_PASSWORD='fixture-secret-not-for-production';
+process.env.F2T_PLATFORM_ADMIN_EMAIL='admin@example.test';process.env.F2T_PLATFORM_ADMIN_PASSWORD='fixture-secret-not-for-production';
 const dir=mkdtempSync(join(tmpdir(),'primark-netlify-test-')),entry=join(dir,'entry.ts');
 writeFileSync(entry,`export * as storage from '${process.cwd()}/lib/storage.ts';
 export {ProfileContent} from '${process.cwd()}/components/profile-menu.tsx';
@@ -80,12 +80,21 @@ const invoke=(route,method,url,body,cookie='',extra={})=>context.run({cookie},()
 const getReport=(cookie,params='')=>invoke(m.prototype,'GET','/api/prototype?view=dashboard&year=all'+params,undefined,cookie);
 const getExport=(cookie,params='')=>invoke(m.prototype,'GET','/api/prototype?view=export&year=all'+params,undefined,cookie);
 const cookieFrom=(response,name)=>response.headers.get('set-cookie')?.match(new RegExp('(?:^|, )'+name+'=([^;,]+)'))?.[1];
-const loginAdmin=async(cookie='')=>{const res=await session({email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD},cookie);assert.equal(res.status,200,await res.clone().text());return 'primark_admin='+cookieFrom(res,'primark_admin');};
+const loginAdmin=async(cookie='')=>{const res=await session({email:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD},cookie);assert.equal(res.status,200,await res.clone().text());return 'primark_admin='+cookieFrom(res,'primark_admin');};
 await check('Postgres batch rolls back a partially failed write',async()=>{await assert.rejects(m.database.db().batch([m.database.db().prepare("INSERT INTO courses(id,title,audience_json,created_at,updated_at) VALUES('rollback','Test','{}','now','now')"),m.database.db().prepare('INSERT INTO missing_table VALUES(1)')]));assert.equal(await m.database.db().prepare("SELECT id FROM courses WHERE id='rollback'").first(),null);});
 await check('SQL placeholders preserve quoted question marks',async()=>assert.equal(m.database.postgresSql("SELECT '?' AS literal, ? AS value, 'it''s ?' AS quoted"),"SELECT '?' AS literal, $1 AS value, 'it''s ?' AS quoted"));
 let adminCookie;
+await check('F2T platform credentials authenticate without accepting the legacy Primark settings',async()=>{
+ const keys=['F2T_PLATFORM_ADMIN_EMAIL','F2T_PLATFORM_ADMIN_PASSWORD','PRIMARK_ADMIN_EMAIL','PRIMARK_ADMIN_PASSWORD'],saved=keys.map(k=>process.env[k]);
+ try{
+  process.env.PRIMARK_ADMIN_EMAIL='legacy-admin@example.test';process.env.PRIMARK_ADMIN_PASSWORD='legacy-fixture-password-only';
+  assert.equal((await session({email:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD})).status,200);
+  delete process.env.F2T_PLATFORM_ADMIN_EMAIL;delete process.env.F2T_PLATFORM_ADMIN_PASSWORD;
+  assert.equal((await session({email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD})).status,401);
+ }finally{keys.forEach((key,i)=>{if(saved[i]===undefined)delete process.env[key];else process.env[key]=saved[i];});}
+});
 await check('Netlify public Host works when Next.js retains another hostname, without trusting forwarded hosts',async()=>{
- const r=req('/api/admin/session','POST',{email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD},'',{host:'primark-induction.netlify.app',origin:'https://primark-induction.netlify.app','x-forwarded-proto':'https','sec-fetch-site':'same-origin'});
+ const r=req('/api/admin/session','POST',{email:'admin@example.test',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD},'',{host:'primark-induction.netlify.app',origin:'https://primark-induction.netlify.app','x-forwarded-proto':'https','sec-fetch-site':'same-origin'});
  r.nextUrl=new URL('http://deploy-alias.netlify.app:443/api/admin/session');
  assert.equal(m.origin.sameOrigin(r),true);
  const res=await context.run({cookie:''},()=>m.session.POST(r));
@@ -97,9 +106,9 @@ await check('Netlify public Host works when Next.js retains another hostname, wi
  const local=req('/');local.nextUrl=new URL('http://localhost:8888/');local.headers.set('host','localhost:8888');local.headers.set('origin','http://localhost:8888');assert.equal(m.origin.sameOrigin(local),true);assert.equal(m.origin.isSecureRequest(local),false);
  local.headers.set('origin','http://localhost:9999');assert.equal(m.origin.sameOrigin(local),false);
 });
-await check('Missing bootstrap credentials reject invalid login without exposing configuration',async()=>{const old=process.env.PRIMARK_ADMIN_PASSWORD;try{process.env.PRIMARK_ADMIN_PASSWORD='too-short';const res=await session({email:'admin@example.test',password:'too-short'});assert.equal(res.status,401);assert.match((await res.json()).error,/did not match/);}finally{process.env.PRIMARK_ADMIN_PASSWORD=old;}});
-await check('Admin rejects wrong password, cross-origin sign-in and spoofed identity headers',async()=>{assert.equal((await session({email:'admin@example.test',password:'wrong'})).status,401);assert.equal((await session({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD},'',{origin:'https://evil.invalid'})).status,403);assert.equal(await context.run({cookie:''},()=>m.auth.getAdminUser()),null);});
-await check('Admin sign-in sets a secure session and password rotation revokes it',async()=>{const res=await session({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD,returnTo:'//evil.invalid'});assert.equal(res.status,200);assert.equal((await res.json()).returnTo,'/admin/courses');assert(res.headers.get('set-cookie').includes('httpOnly=true'));assert(res.headers.get('set-cookie').includes('secure=true'));adminCookie=res.headers.get('set-cookie').split(';')[0];assert.equal((await context.run({cookie:adminCookie},()=>m.auth.getAdminUser())).email,'admin@example.test');const old=process.env.PRIMARK_ADMIN_PASSWORD;process.env.PRIMARK_ADMIN_PASSWORD='a-different-long-admin-secret';assert.equal(await context.run({cookie:adminCookie},()=>m.auth.getAdminUser()),null);process.env.PRIMARK_ADMIN_PASSWORD=old;});
+await check('Missing bootstrap credentials reject invalid login without exposing configuration',async()=>{const old=process.env.F2T_PLATFORM_ADMIN_PASSWORD;try{process.env.F2T_PLATFORM_ADMIN_PASSWORD='too-short';const res=await session({email:'admin@example.test',password:'too-short'});assert.equal(res.status,401);assert.match((await res.json()).error,/did not match/);}finally{process.env.F2T_PLATFORM_ADMIN_PASSWORD=old;}});
+await check('Admin rejects wrong password, cross-origin sign-in and spoofed identity headers',async()=>{assert.equal((await session({email:'admin@example.test',password:'wrong'})).status,401);assert.equal((await session({email:'admin@example.test',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD},'',{origin:'https://evil.invalid'})).status,403);assert.equal(await context.run({cookie:''},()=>m.auth.getAdminUser()),null);});
+await check('Admin sign-in sets a secure session and password rotation revokes it',async()=>{const res=await session({email:'admin@example.test',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD,returnTo:'//evil.invalid'});assert.equal(res.status,200);assert.equal((await res.json()).returnTo,'/admin/courses');assert(res.headers.get('set-cookie').includes('httpOnly=true'));assert(res.headers.get('set-cookie').includes('secure=true'));adminCookie=res.headers.get('set-cookie').split(';')[0];assert.equal((await context.run({cookie:adminCookie},()=>m.auth.getAdminUser())).email,'admin@example.test');const old=process.env.F2T_PLATFORM_ADMIN_PASSWORD;process.env.F2T_PLATFORM_ADMIN_PASSWORD='a-different-long-admin-secret';assert.equal(await context.run({cookie:adminCookie},()=>m.auth.getAdminUser()),null);process.env.F2T_PLATFORM_ADMIN_PASSWORD=old;});
 await check('Admin logout revokes the database session',async()=>{assert.equal((await session({action:'logout'},adminCookie)).status,200);assert.equal(await context.run({cookie:adminCookie},()=>m.auth.getAdminUser()),null);});
 await check('Admin login attempts are rate limited in Postgres',async()=>{for(let i=0;i<10;i++)await session({email:'admin@example.test',password:'wrong'});assert.equal((await session({email:'admin@example.test',password:'wrong'})).status,429);});
 const learnerId='photo-learner',learnerToken='photo-token',store=m.stores.find(s=>s.country==='Ireland');
@@ -156,14 +165,14 @@ await check('Profile scope controls restrict sites and reporting levels and prod
 await check('Profile identity is derived from the active session and server reporting grant',async()=>{
  assert.equal((await (await invoke(m.prototype,'GET','/api/prototype?view=me')).json()).account,null);
  const learner=(await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,learnerCookie)).json()).account;assert.equal(learner.name,'Photo User');assert.equal(learner.role,'Learner');assert.equal(learner.site,store.name);assert.equal(learner.platformAdmin,false);
- const admin=(await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,reportingAdmin)).json()).account;assert.equal(admin.email,process.env.PRIMARK_ADMIN_EMAIL);assert.equal(admin.role,'Platform admin');assert.equal(admin.site,'All Primark');assert.equal(admin.platformAdmin,true);
+ const admin=(await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,reportingAdmin)).json()).account;assert.equal(admin.email,process.env.F2T_PLATFORM_ADMIN_EMAIL);assert.equal(admin.role,'Platform admin');assert.equal(admin.site,'All Primark');assert.equal(admin.platformAdmin,true);
 });
 await check('Platform admins can upload and update shot status with their own attribution; existing photos remain readable',async()=>{
- const photo=await query('SELECT uploaded_by,uploaded_by_admin,object_key FROM shot_photos WHERE id=?',photoId).first();assert.equal(photo.uploaded_by,null);assert.equal(photo.uploaded_by_admin,process.env.PRIMARK_ADMIN_EMAIL);assert(!photo.object_key.includes(process.env.PRIMARK_ADMIN_EMAIL));
+ const photo=await query('SELECT uploaded_by,uploaded_by_admin,object_key FROM shot_photos WHERE id=?',photoId).first();assert.equal(photo.uploaded_by,null);assert.equal(photo.uploaded_by_admin,process.env.F2T_PLATFORM_ADMIN_EMAIL);assert(!photo.object_key.includes(process.env.F2T_PLATFORM_ADMIN_EMAIL));
  const body={module:1,slide:2,status:'complete',note:''};assert.equal((await invoke(m.shots,'POST','/api/shot-list',body,reportingAdmin)).status,200);
- const state=await query('SELECT updated_by,updated_by_admin FROM shot_states WHERE module_number=1 AND slide_number=2').first();assert.equal(state.updated_by,null);assert.equal(state.updated_by_admin,process.env.PRIMARK_ADMIN_EMAIL);
+ const state=await query('SELECT updated_by,updated_by_admin FROM shot_states WHERE module_number=1 AND slide_number=2').first();assert.equal(state.updated_by,null);assert.equal(state.updated_by_admin,process.env.F2T_PLATFORM_ADMIN_EMAIL);
  await query('INSERT INTO shot_photos(id,module_number,slide_number,filename,mime_type,size,object_key,uploaded_by,uploaded_at) VALUES(?,1,2,?,?,?,?,?,?)','legacy-photo','old.jpg','image/jpeg',17,photoKey,learnerId,'2025-01-01').run();
- const data=await (await invoke(m.shots,'GET','/api/shot-list',undefined,reportingAdmin)).json();assert.equal(data.photos.find(p=>p.id==='legacy-photo').uploader_name,'Photo User');assert.equal(data.photos.find(p=>p.id===photoId).uploader_name,process.env.PRIMARK_ADMIN_EMAIL);
+ const data=await (await invoke(m.shots,'GET','/api/shot-list',undefined,reportingAdmin)).json();assert.equal(data.photos.find(p=>p.id==='legacy-photo').uploader_name,'Photo User');assert.equal(data.photos.find(p=>p.id===photoId).uploader_name,process.env.F2T_PLATFORM_ADMIN_EMAIL);
  assert.equal((await invoke(m.shots,'POST','/api/shot-list',body,reportingAdmin,{origin:'https://evil.invalid'})).status,403);assert.equal((await invoke(m.photos,'POST','/api/shot-list/photos',new FormData(),reportingAdmin,{origin:'https://evil.invalid'})).status,403);
 });
 await check('Learners and anonymous visitors cannot read reports, exports, course management or permission lists',async()=>{
@@ -237,7 +246,7 @@ await check('Learner registration and sign-in end and revoke the previous platfo
  assert.equal(await context.run({cookie:reportingAdmin},()=>m.auth.getAdminUser()),null);
 });
 await check('Platform sign-in clears learner cookies and revokes the learner session',async()=>{
- const cookie=userCookies['same-site'];const res=await session({email:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD},cookie);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_session=;'));
+ const cookie=userCookies['same-site'];const res=await session({email:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD},cookie);assert.equal(res.status,200);assert(res.headers.get('set-cookie').includes('primark_session=;'));
  const state=await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,cookie)).json();assert.equal(state.learner,null);
  reportingAdmin='primark_admin='+cookieFrom(res,'primark_admin');assert.equal((await getReport(reportingAdmin)).status,200);
 });
@@ -254,7 +263,7 @@ const commonLogin=(body,cookie='',extra={})=>invoke(m.prototype,'POST','/api/pro
 await check('Common Login recognises platform credentials, rotates sessions and returns a safe admin destination',async()=>{
  const learnerLogin=await commonLogin({email:'new@example.test',password:'My-fixture-password'});
  const oldLearner='primark_session='+cookieFrom(learnerLogin,'primark_session');
- const first=await commonLogin({email:' ADMIN@EXAMPLE.TEST ',password:process.env.PRIMARK_ADMIN_PASSWORD,returnTo:'/admin/reporting-access'},oldLearner);
+ const first=await commonLogin({email:' ADMIN@EXAMPLE.TEST ',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD,returnTo:'/admin/reporting-access'},oldLearner);
  assert.equal(first.status,200,await first.clone().text());assert.equal((await first.json()).returnTo,'/admin/reporting-access');
  assert(first.headers.get('set-cookie').includes('httpOnly=true'));assert(first.headers.get('set-cookie').includes('sameSite=strict'));assert(first.headers.get('set-cookie').includes('primark_session=;'));
  const admin='primark_admin='+cookieFrom(first,'primark_admin');
@@ -262,7 +271,7 @@ await check('Common Login recognises platform credentials, rotates sessions and 
  assert.equal(state.account.role,'Platform admin');assert.equal(state.platformAdmin,true);assert.equal(state.learner,null);
  assert.equal((await (await invoke(m.prototype,'GET','/api/prototype?view=me',undefined,oldLearner)).json()).learner,null);
  assert.equal((await invoke(m.courseAdmin,'GET','/api/admin/courses',undefined,admin)).status,200);
- const second=await commonLogin({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD,returnTo:'//evil.invalid'},admin);
+ const second=await commonLogin({email:'admin@example.test',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD,returnTo:'//evil.invalid'},admin);
  assert.equal((await second.json()).returnTo,'/admin/courses');assert.equal(await context.run({cookie:admin},()=>m.auth.getAdminUser()),null);
 });
 await check('Sharing an admin email does not elevate a learner password or posted role',async()=>{
@@ -276,7 +285,7 @@ await check('Sharing an admin email does not elevate a learner password or poste
 });
 await check('Common Login rejects wrong details and cross-origin requests and shares the admin rate limit',async()=>{
  await query('DELETE FROM auth_limits').run();
- const credentials={email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD};
+ const credentials={email:'admin@example.test',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD};
  assert.equal((await commonLogin(credentials,'',{origin:'https://evil.invalid'})).status,403);
  assert.equal((await commonLogin({...credentials,email:'unknown@example.test'})).status,401);
  for(let i=0;i<5;i++){assert.equal((await commonLogin({...credentials,password:'wrong'})).status,401);assert.equal((await session({...credentials,password:'wrong'})).status,401);}
@@ -284,9 +293,9 @@ await check('Common Login rejects wrong details and cross-origin requests and sh
  await query('DELETE FROM auth_limits').run();
 });
 await check('Common Login preserves long configured admin passwords and old login bookmarks have safe redirects',async()=>{
- const previous=process.env.PRIMARK_ADMIN_PASSWORD;
- try {process.env.PRIMARK_ADMIN_PASSWORD='fixture-'.repeat(25);assert.equal((await commonLogin({email:'admin@example.test',password:process.env.PRIMARK_ADMIN_PASSWORD})).status,200);}
- finally {process.env.PRIMARK_ADMIN_PASSWORD=previous;}
+ const previous=process.env.F2T_PLATFORM_ADMIN_PASSWORD;
+ try {process.env.F2T_PLATFORM_ADMIN_PASSWORD='fixture-'.repeat(25);assert.equal((await commonLogin({email:'admin@example.test',password:process.env.F2T_PLATFORM_ADMIN_PASSWORD})).status,200);}
+ finally {process.env.F2T_PLATFORM_ADMIN_PASSWORD=previous;}
  for(const value of ['https://evil.invalid','//evil.invalid','/\\evil.invalid','/admin/sign-in','/?login=1'])assert.equal(m.auth.safeReturnTo(value),'/admin/courses');
  await assert.rejects(context.run({cookie:''},()=>m.auth.requireAdminUser('/admin/courses')),/\/\?login=1&returnTo=%2Fadmin%2Fcourses/);
 });

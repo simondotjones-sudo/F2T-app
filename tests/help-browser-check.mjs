@@ -20,7 +20,7 @@ const db=new NetlifyDB({logger:()=>{}});const url=await db.start();
 for(const name of readdirSync('netlify/database/migrations').sort().filter(n=>!n.includes('sample-learner-induction-completion')))await db.exec(readFileSync(`netlify/database/migrations/${name}/migration.sql`,'utf8'));
 await db.exec('SET search_path TO lms_tenant_2,public; UPDATE organisation_settings SET credits_enabled=false; RESET search_path;');
 const log=createWriteStream('/tmp/help-ui-next.log');
-const app=spawn('node',['node_modules/next/dist/bin/next','dev','--webpack','--hostname','127.0.0.1','--port','3010'],{cwd:fixture,env:{...process.env,WATCHPACK_POLLING:'1000',NETLIFY_DB_URL:url,PRIMARK_ADMIN_EMAIL:'operator@example.invalid',PRIMARK_ADMIN_PASSWORD:'FictionalNativeBrowserPassword2026!',LMS_EMAIL_DELIVERY:'disabled',LMS_BACKGROUND_JOBS:'disabled'},stdio:['ignore','pipe','pipe']});app.stdout.pipe(log);app.stderr.pipe(log);
+const app=spawn('node',['node_modules/next/dist/bin/next','dev','--webpack','--hostname','127.0.0.1','--port','3010'],{cwd:fixture,env:{...process.env,WATCHPACK_POLLING:'1000',NETLIFY_DB_URL:url,F2T_PLATFORM_ADMIN_EMAIL:'operator@example.invalid',F2T_PLATFORM_ADMIN_PASSWORD:'FictionalNativeBrowserPassword2026!',LMS_EMAIL_DELIVERY:'disabled',LMS_BACKGROUND_JOBS:'disabled'},stdio:['ignore','pipe','pipe']});app.stdout.pipe(log);app.stderr.pipe(log);
 let browser;
 try{
  for(let i=0;i<60;i++){try{const r=await fetch('http://127.0.0.1:3010/api/client-brand');if(r.ok)break;}catch{}await new Promise(r=>setTimeout(r,1000));}

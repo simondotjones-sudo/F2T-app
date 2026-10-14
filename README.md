@@ -13,12 +13,14 @@ Client 1 keeps this application's existing Primark data and uploaded course. Cli
 
 ## Hosting
 
-Repository: `simondotjones-sudo/eazysafe-LC4` · Netlify site: `eazysafe-lc4`.
+Repository: `simondotjones-sudo/F2T-app` · Netlify site: `fit2trade-app`.
+
+This independent Fit2Trade clone uses its own platform administrator settings. Historical release notes below describe the EazySAFE source baseline.
 
 `netlify.toml` builds with `pnpm build`, publishes `.next` and uses Node 22. The committed migration is applied by Netlify's database integration. Use this project's own database/storage; never reuse the original Primark project's connection or credentials. Preview deployments must use an isolated database branch.
 
-- `PRIMARK_ADMIN_EMAIL` and `PRIMARK_ADMIN_PASSWORD`: global operator credentials; password at least 16 characters. Legacy environment names remain for compatibility.
-- `PRIMARK_APP_URL`: this application's HTTPS origin.
+- `F2T_PLATFORM_ADMIN_EMAIL` and `F2T_PLATFORM_ADMIN_PASSWORD`: global operator credentials; set in Functions scope for the production deploy context. Use a unique password of 16–128 characters and mark the password variable secret. The former `PRIMARK_ADMIN_*` variables are no longer read by this app.
+- `PRIMARK_APP_URL`: this application's HTTPS origin (`https://fit2trade-app.netlify.app`); this separate URL setting retains its existing name.
 - `LMS_BACKGROUND_JOBS` and `LMS_EMAIL_DELIVERY`: disabled unless explicitly enabled in production; existing safeguards remain. Configure a valid sender before enabling email.
 - `LMS_MIGRATION_HOLD=enabled`: maintenance guard for a reviewed import/release operation; off by default.
 

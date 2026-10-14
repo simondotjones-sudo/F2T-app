@@ -36,7 +36,7 @@ export async function platformAdminChecks({m,check,query,invoke,loginAdmin,cooki
     assert.deepEqual(await query('SELECT * FROM learners WHERE id=?',id).first(),original);
     assert.equal(await query('SELECT * FROM reporting_access WHERE learner_id=?',id).first(),null);
     const grant = await query('SELECT * FROM platform_admins WHERE learner_id=?',id).first();
-    assert.equal(grant.assigned_by,process.env.PRIMARK_ADMIN_EMAIL);
+    assert.equal(grant.assigned_by,process.env.F2T_PLATFORM_ADMIN_EMAIL);
     const list = await (await invoke(m.access,'GET',endpoint,undefined,bootstrap)).json();
     assert.equal(list.people.find(p=>p.id===id).platform_admin,true);
     assert.equal((await me(bootstrap)).platformAdmin,true);

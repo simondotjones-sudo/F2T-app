@@ -85,7 +85,7 @@ export async function registrationChecks({m,check,query,invoke,loginAdmin,cookie
       assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier,password:'wrong-password'})).status,401);
     }
     assert.equal((await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:'PR-UNKNOWN',password:'Workday-Password-123'})).status,401);
-    const adminLogin=await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:process.env.PRIMARK_ADMIN_EMAIL,password:process.env.PRIMARK_ADMIN_PASSWORD});
+    const adminLogin=await invoke(m.prototype,'POST','/api/prototype',{action:'login',identifier:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD});
     assert.equal(adminLogin.status,200);assert(cookieFrom(adminLogin,'primark_admin'));
   });
   await check('Workday uniqueness is enforced by Postgres even if registration requests race',async()=>{

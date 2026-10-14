@@ -33,7 +33,7 @@ export async function legacyLoginChecks({m,check,query,invoke,loginAdmin,cookieF
     await create('duplicate-email','Duplicate@Example.test');
     await query('UPDATE learners SET archived_at=? WHERE id=?','2026-01-01','duplicate-email').run();
     assert.equal((await complete(pending,' DUPLICATE@example.test ')).status,409);
-    assert.equal((await complete(pending,process.env.PRIMARK_ADMIN_EMAIL)).status,409);
+    assert.equal((await complete(pending,process.env.F2T_PLATFORM_ADMIN_EMAIL)).status,409);
     assert.equal((await query('SELECT email FROM learners WHERE id=?','historic-email').first()).email,null);
     const response=await complete(pending,' Unique-Historic@example.test ');assert.equal(response.status,200);completed=cookie(response);
     assert.equal((await me(completed)).account.email,'unique-historic@example.test');assert.equal((await me(completed)).platformAdmin,true);
