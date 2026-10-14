@@ -1,0 +1,4 @@
+.course-management-tabs{position:relative;width:100%;min-width:0;overflow-x:auto;padding:3px 0 9px;margin:0 0 18px;scrollbar-width:thin;overscroll-behavior-x:contain}
+.course-management-tabs .pill-switch.pill-switch{width:max-content;min-width:0;max-width:none;margin-inline:auto}
+.shell .course-management-tabs .pill-switch.pill-switch>button{flex:0 0 auto;min-width:140px;max-width:none;padding-inline:24px;white-space:nowrap;overflow-wrap:normal}
+@media(max-width:760px){.shell .course-management-tabs .pill-switch.pill-switch>button{min-width:124px;padding-inline:16px}.course-management-tabs .pill-switch.pill-switch{min-width:100%;margin-inline:0}}

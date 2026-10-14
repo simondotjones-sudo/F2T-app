@@ -1,0 +1,20 @@
+.access-admin .admin-id{flex-wrap:wrap;justify-content:flex-end}
+.access-people,.access-editor{padding:28px}
+.access-search{display:grid;gap:8px;font-weight:600;max-width:440px;margin-bottom:24px}
+.access-people .table-scroll{position:relative}
+.access-people table{width:100%;text-align:start;border-collapse:collapse;font-size:15px}
+.access-people th{font-size:13px;color:#617988;font-weight:600;padding:12px;border-bottom:1px solid #dce8ef}
+.access-people td{padding:18px 12px;border-bottom:1px solid #edf2f5;vertical-align:middle}
+.access-people td strong,.access-people td small{display:block;overflow-wrap:anywhere}
+.access-people td small{color:#617988;margin-top:4px}
+.access-badge{display:inline-block;background:var(--brand-soft);color:var(--brand-ink);padding:7px 12px;border-radius:12px}
+.access-none,.access-note{color:#617988}
+.access-editor{max-width:640px}
+.access-editor h2{font-size:28px;margin:20px 0 4px}
+.access-editor>p{color:#617988;margin-bottom:28px;overflow-wrap:anywhere}
+.access-editor form{display:grid;gap:22px}
+.access-editor label{display:grid;gap:8px;font-weight:600}
+.access-explanation{background:var(--brand-soft);color:var(--brand-ink);padding:18px;border-radius:12px;margin:0}
+.access-note{font-size:14px;margin:0;line-height:1.6}
+.access-editor .editor-actions{margin-top:0}
+@media(max-width:700px){.access-admin .admin-id{gap:14px;justify-content:flex-start}.access-people,.access-editor{padding:20px}.access-people table{min-width:640px}}

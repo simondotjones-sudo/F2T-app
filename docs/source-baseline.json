@@ -1,0 +1,265 @@
+{
+  "recorded_on": "2026-10-11",
+  "phase": "fresh independent database; active course uploaded by user; no bulk source-data transfer",
+  "source_repository": "https://github.com/simondotjones-sudo/Primark",
+  "source_branch": "main",
+  "source_commit": "a7fdd6af055aa8e5a2e8020d22e92896153ac6f9",
+  "source_app_version": "1.11.10.26.60",
+  "source_deploy_id": "6acb4e27a200f2000895ce64",
+  "source_deploy_state": "ready",
+  "source_deploy_published_at": "2026-10-11T08:53:07.253Z",
+  "source_netlify_site_id": "7e29a328-6314-48ea-b19c-bd431789aae2",
+  "target_repository": "https://github.com/simondotjones-sudo/eazysafe-LC4",
+  "target_netlify_site_id": "d79310e0-876d-4b6c-b5bf-a397b3520df9",
+  "bootstrap_app_version": "1.11.10.26.61",
+  "source_migration_count": 37,
+  "source_table_count": 57,
+  "source_tables": [
+    "accounting_periods",
+    "admin_passwords",
+    "admin_sessions",
+    "assessment_evidence",
+    "assessor_accounts",
+    "assessor_audit",
+    "assessor_grants",
+    "assignment_exclusions",
+    "assignment_history",
+    "attempts",
+    "audit_events",
+    "auth_limits",
+    "certificates",
+    "course_assignments",
+    "course_files",
+    "course_packages",
+    "course_quiz_attempts",
+    "course_refresher_assignments",
+    "course_refresher_rules",
+    "course_versions",
+    "courses",
+    "credit_ledger",
+    "credit_rates",
+    "email_audit",
+    "email_outbox",
+    "email_settings",
+    "job_roles",
+    "learner_inductions",
+    "learners",
+    "learning_invitation_tokens",
+    "learning_invitations",
+    "learning_pathways",
+    "legacy_completions",
+    "module_views",
+    "organisation_settings",
+    "organisation_settings_audit",
+    "organisation_store_audit",
+    "organisation_store_import_history",
+    "organisation_stores",
+    "password_resets",
+    "pathway_assignment_failures",
+    "pathway_audit",
+    "pathway_enrolment_courses",
+    "pathway_enrolments",
+    "platform_admins",
+    "practical_assessments",
+    "reporting_access",
+    "scheduled_report_settings",
+    "scorm_launches",
+    "scorm_progress",
+    "sessions",
+    "shot_photos",
+    "shot_states",
+    "store_credit_accounts",
+    "store_managers",
+    "training_recognitions",
+    "user_access_audit"
+  ],
+  "source_migrations": [
+    {
+      "path": "netlify/database/migrations/001_initial-schema/migration.sql",
+      "sha256": "3f1e6faf7b3d0c7876ea7d8d89a4ca9b4682efd8f39b4c4e9fc16f48564bac98"
+    },
+    {
+      "path": "netlify/database/migrations/002_reporting-access/migration.sql",
+      "sha256": "c25ac64d75bde074147aab74f10edfbc588b33866a88fee535b369579b90d756"
+    },
+    {
+      "path": "netlify/database/migrations/003_admin-shot-list/migration.sql",
+      "sha256": "2e842caf35c210dce41eac553ec8ab3868b56247855fe6a40dfb9ae0f26ebc12"
+    },
+    {
+      "path": "netlify/database/migrations/004_registration-catalogue/migration.sql",
+      "sha256": "e691def49b4d66faad15681839d3b0c9dff87e2e1c77bb6461067b036c60fe6c"
+    },
+    {
+      "path": "netlify/database/migrations/005_seed-primark-courses/migration.sql",
+      "sha256": "482b97189eee5158f1ee1d1134cb97131c9b3e8e87dbf1bd833c835ee12d6b04"
+    },
+    {
+      "path": "netlify/database/migrations/20261007182000_course-panel-details/migration.sql",
+      "sha256": "1cf3662a12622c0de8ff93a54a83a3d05395573e9c3e6a7db42ba24f9d2f0c88"
+    },
+    {
+      "path": "netlify/database/migrations/20261007190000_course-validity/migration.sql",
+      "sha256": "c92188d287c5fec42cd9796ab121590c4c80a9ffbfcabb629756dc75dbef4cad"
+    },
+    {
+      "path": "netlify/database/migrations/20261007210000_certificates/migration.sql",
+      "sha256": "447c67fecedd66c4f73c083f4641616b201734bcc2b428e78f7fb6a3188a94f3"
+    },
+    {
+      "path": "netlify/database/migrations/20261007220000_password-recovery/migration.sql",
+      "sha256": "b0c283aa19f412757160cf9effaadc4e6968e3129540e2563b6524c877dd7692"
+    },
+    {
+      "path": "netlify/database/migrations/20261008000000_organisation/migration.sql",
+      "sha256": "dce07c328bae25b9f997445b3979554ae20a38e89c98bc6c92c8853dda70922d"
+    },
+    {
+      "path": "netlify/database/migrations/20261008010000_registration-identity/migration.sql",
+      "sha256": "df94238d355bd9fb6bb4ed1e3b403129db3f3361bc8e3c1f8628fca5fe0ee09d"
+    },
+    {
+      "path": "netlify/database/migrations/20261008073000_platform-admins/migration.sql",
+      "sha256": "f5ef4377040e31c35b055df66aa8384e7f710996e1c5eddd8146b3b17fc8fe84"
+    },
+    {
+      "path": "netlify/database/migrations/20261008110000_reporting-scope-index/migration.sql",
+      "sha256": "9d26d5c5cea5d8e75213dbb60151e41f35bb3f7e9b0283c68592fe0403d8bf4a"
+    },
+    {
+      "path": "netlify/database/migrations/20261008120000_user-archive/migration.sql",
+      "sha256": "f57c44fc2eb4c8aa7b83720afb1cd7fa9ad5148f54ed8d39c3950441ca28e1e0"
+    },
+    {
+      "path": "netlify/database/migrations/20261008130000_user-details-audit/migration.sql",
+      "sha256": "71bfb41cda6413cd09f39f4130baa9cffe1ad2c2db308cf9ece2923749406bc5"
+    },
+    {
+      "path": "netlify/database/migrations/20261008140000_store-setup/migration.sql",
+      "sha256": "abe4e743b74a2aeea78bdb3d0d6e771f2bb82700b418dfac8752cb00d8fd5841"
+    },
+    {
+      "path": "netlify/database/migrations/20261008150000_user-login-dates/migration.sql",
+      "sha256": "6ec96ebe20a05f96bb6f17aa7aca62b52bbf578a771a8adb29686a6420bb174e"
+    },
+    {
+      "path": "netlify/database/migrations/20261008160000_period-credits/migration.sql",
+      "sha256": "a3de897072dbf3cbf904bf292c1b5d77ce37a28c288e22186ab8b45b61e50d5d"
+    },
+    {
+      "path": "netlify/database/migrations/20261009083000_official-store-list/migration.sql",
+      "sha256": "f912501c7960deea0902aa0e06712ebe6ad27064a8a43ea4d07598ca930f828e"
+    },
+    {
+      "path": "netlify/database/migrations/20261009090000_store-details/migration.sql",
+      "sha256": "10f905b874ee72339baaeb52fba007988d3aeb96d72104ed0734f93ae694ed37"
+    },
+    {
+      "path": "netlify/database/migrations/20261009100000_store-deletion/migration.sql",
+      "sha256": "cffc68de056c0eff31b3d282cd74d7ca48581059aa63f2fbc736fee802fafe9b"
+    },
+    {
+      "path": "netlify/database/migrations/20261009150000_assignment-removal-guard/migration.sql",
+      "sha256": "1af6c2894e2c83252d586bf9820eeb331f0a122501aa8e97739d6e457564b5f6"
+    },
+    {
+      "path": "netlify/database/migrations/20261009160000_sample-learner-induction-completion/migration.sql",
+      "sha256": "fb9b4e3ca6463ee50f023415f73c4d992356b9ad28bb003ee618884fd379ecc1"
+    },
+    {
+      "path": "netlify/database/migrations/20261010030000_course-expiry-import/migration.sql",
+      "sha256": "5ee7311238b221384e268cd3e9bae60170840459196f778fff5d356450a39e28"
+    },
+    {
+      "path": "netlify/database/migrations/20261010040000_course-refreshers/migration.sql",
+      "sha256": "45207ac3ef97e9b43e89db6ad9f96aa1a9f1aa707c02654cd3a84eac0b1222b0"
+    },
+    {
+      "path": "netlify/database/migrations/20261010050000_legacy-login/migration.sql",
+      "sha256": "95730b775542d444e0c7a89f3588b217a010c557d92679eb9b52f384fceb3b09"
+    },
+    {
+      "path": "netlify/database/migrations/20261010060000_learning-controls/migration.sql",
+      "sha256": "16b93acb9963302c264242d6a4ee398b79005b5b539c010de0588e487ae541cb"
+    },
+    {
+      "path": "netlify/database/migrations/20261010080000_assessor-signoff/migration.sql",
+      "sha256": "43653544c477baa1e73bbb904506d03e4695eda2cce64f1c61cf3b0e1d5d7951"
+    },
+    {
+      "path": "netlify/database/migrations/20261010100000_learning-pathways/migration.sql",
+      "sha256": "c9285c138d87d13d31aca0ee3c9d68ed19532e10f17f999a6a99d29c8de97e25"
+    },
+    {
+      "path": "netlify/database/migrations/20261010110000_versions-lifecycle-audit/migration.sql",
+      "sha256": "bb12f655d18705af8525591303f59b1516f83695145ab92034704142780f9c14"
+    },
+    {
+      "path": "netlify/database/migrations/20261010120000_pathway-rules/migration.sql",
+      "sha256": "643897f84f000a48643fedc9c06fd4c138ac1c492db5a134a0411be022d86a27"
+    },
+    {
+      "path": "netlify/database/migrations/20261010133000_email-notifications/migration.sql",
+      "sha256": "e8bab6340ec003b885af4cec8da8a87727d04d857d30b34082938aeff7c9b605"
+    },
+    {
+      "path": "netlify/database/migrations/20261010141000_assessment-evidence/migration.sql",
+      "sha256": "073e5b56bfaf76a224b8dbc1b1ba0812e3638518ee6baf58de74a6ab068117c4"
+    },
+    {
+      "path": "netlify/database/migrations/20261010150000_feature-settings/migration.sql",
+      "sha256": "e80890423648daa56b105d8d93711178c1dc11f56362527e38573a12c7e66c58"
+    },
+    {
+      "path": "netlify/database/migrations/20261010160000_scheduled-reports/migration.sql",
+      "sha256": "229117a40de2c89e12c6c293da38bf44f88e83c26a1b06fa929af15cf6cde92d"
+    },
+    {
+      "path": "netlify/database/migrations/20261010170000_job-roles/migration.sql",
+      "sha256": "2a11a9d487b9121b64902e0388ebd58d35dbc756bf2faf120277e30b0fb701a5"
+    },
+    {
+      "path": "netlify/database/migrations/20261010180000_training-recognition/migration.sql",
+      "sha256": "6033c41eddf0e5c21e37a62a59dd42327d537f26e27db39dc7ef1b6f46a144e9"
+    }
+  ],
+  "storage": {
+    "source_store": "primark-files",
+    "target_store": "eazysafe-files",
+    "target_preview_prefix": "eazysafe-preview-",
+    "representation": [
+      "objects/<sha256-key>",
+      "parts/<sha256-key>/<index>",
+      "sizes/<sha256-key>/<index>"
+    ]
+  },
+  "live_record_counts": null,
+  "live_blob_counts": {
+    "recorded_on": "2026-10-11",
+    "source_before_scope_change": {
+      "objects": 607,
+      "parts": 698,
+      "sizes": 698
+    },
+    "destination_after_user_upload": {
+      "objects": 415,
+      "parts": 445,
+      "sizes": 445
+    },
+    "content_checksums_verified": false,
+    "equivalence_to_source_required": false
+  },
+  "live_data_copy_verified": false,
+  "tenant_isolation_implemented": false,
+  "sso_implementation_found_in_source": false,
+  "current_app_version": "1.11.10.26.62",
+  "bulk_transfer_required": false,
+  "bootstrap_decision": {
+    "date": "2026-10-11",
+    "basis": "User confirmed source demo has no real users to preserve and one active course.",
+    "mode": "fresh destination database with manually uploaded course",
+    "course_uploaded_by_user": true,
+    "course_playback_verified": false,
+    "source_demo_unchanged": true
+  }
+}

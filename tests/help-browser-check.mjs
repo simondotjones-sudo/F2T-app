@@ -1,0 +1,72 @@
+// Optional authenticated browser check. Requires Playwright/Chromium; see the Release 81 report.
+// Copies the app to a temporary directory and serializes the local PGlite test pool only.
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(import.meta.url);
+const cliRequire=createRequire(require.resolve('netlify-cli/package.json'));
+const databaseModule=cliRequire.resolve.paths('@netlify/database-dev').map(p=>join(p,'@netlify/database-dev/dist/main.js')).find(existsSync);
+if(!databaseModule)throw new Error('Install the project Netlify CLI dependency first');
+const {NetlifyDB}=await import(pathToFileURL(databaseModule).href);
+import {existsSync,readFileSync,readdirSync,createWriteStream,mkdtempSync,cpSync,symlinkSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {spawn} from 'node:child_process';
+const {chromium}=await import(process.env.LMS_TEST_PLAYWRIGHT_MODULE||'playwright');
+const fixture=mkdtempSync(join(tmpdir(),'help-browser-app-'));
+for(const name of ['app','components','hooks','lib','data','public','assets','vendor','scripts','package.json','tsconfig.json','next.config.ts','next-env.d.ts','postcss.config.mjs'])cpSync(name,join(fixture,name),{recursive:true});
+symlinkSync(process.cwd()+'/node_modules',join(fixture,'node_modules'),'dir');
+writeFileSync(join(fixture,'lib/database-driver.ts'),`import {getDatabase} from '@netlify/database';import {assertMigrationOpen} from './migration-hold';const state=globalThis as typeof globalThis&{__nativeTestDriver?:ReturnType<typeof getDatabase>};export function databaseDriver(){assertMigrationOpen();const d=state.__nativeTestDriver??=getDatabase();d.pool.options.max=1;return d;}`);
+const db=new NetlifyDB({logger:()=>{}});const url=await db.start();
+for(const name of readdirSync('netlify/database/migrations').sort().filter(n=>!n.includes('sample-learner-induction-completion')))await db.exec(readFileSync(`netlify/database/migrations/${name}/migration.sql`,'utf8'));
+await db.exec('SET search_path TO lms_tenant_2,public; UPDATE organisation_settings SET credits_enabled=false; RESET search_path;');
+const log=createWriteStream('/tmp/help-ui-next.log');
+const app=spawn('node',['node_modules/next/dist/bin/next','dev','--webpack','--hostname','127.0.0.1','--port','3010'],{cwd:fixture,env:{...process.env,WATCHPACK_POLLING:'1000',NETLIFY_DB_URL:url,PRIMARK_ADMIN_EMAIL:'operator@example.invalid',PRIMARK_ADMIN_PASSWORD:'FictionalNativeBrowserPassword2026!',LMS_EMAIL_DELIVERY:'disabled',LMS_BACKGROUND_JOBS:'disabled'},stdio:['ignore','pipe','pipe']});app.stdout.pipe(log);app.stderr.pipe(log);
+let browser;
+try{
+ for(let i=0;i<60;i++){try{const r=await fetch('http://127.0.0.1:3010/api/client-brand');if(r.ok)break;}catch{}await new Promise(r=>setTimeout(r,1000));}
+ browser=await chromium.launch({headless:true,...(process.env.LMS_TEST_CHROMIUM?{executablePath:process.env.LMS_TEST_CHROMIUM}:{}),args:['--no-sandbox']});
+ const context=await browser.newContext({viewport:{width:1365,height:900}}),page=await context.newPage();
+ page.on('pageerror',e=>console.log('BROWSER ERROR',e.message));
+ await page.goto('http://127.0.0.1:3010/?client=eazysafe-internal');
+
+ const login=await context.request.post('http://127.0.0.1:3010/api/admin/session',{headers:{origin:'http://127.0.0.1:3010'},data:{email:'operator@example.invalid',password:'FictionalNativeBrowserPassword2026!'}});if(login.status()!==200)throw new Error('Local admin login failed: '+await login.text());
+ await page.goto('http://127.0.0.1:3010/help');
+ await page.getByRole('heading',{name:'How can we help?',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Not now',exact:true}).click({timeout:1500}).catch(()=>{});
+ await page.screenshot({path:'/tmp/help-desktop.png'});
+ await page.getByRole('button',{name:'Getting started'}).click();
+ await page.getByRole('button',{name:'Sign in and recover your account'}).click();
+ await page.getByRole('button',{name:'Edit article',exact:true}).click();
+ await page.getByLabel('Title',{exact:true}).fill('Sign in: fictional browser edit');
+ await page.getByRole('button',{name:'Save changes',exact:true}).click();
+ await page.getByRole('heading',{name:'Sign in: fictional browser edit'}).waitFor();
+ await page.getByRole('tab',{name:'Contact',exact:true}).click();
+ await page.getByLabel('Subject',{exact:true}).fill('Fictional browser support request');
+ await page.getByLabel('Message',{exact:true}).fill('A test request created only in local PGlite.');
+ await page.getByRole('button',{name:'Submit request',exact:true}).click();
+ await page.getByText('Request received',{exact:true}).waitFor();
+ await page.getByRole('tab',{name:'Support inbox',exact:true}).click();
+ await page.locator('summary').filter({hasText:'Fictional browser support request'}).click();
+ await page.getByLabel('Support response',{exact:true}).fill('Fictional support answer');
+ await page.getByLabel('Status',{exact:true}).selectOption('resolved');
+ await page.getByRole('button',{name:'Save changes',exact:true}).last().click();
+ await page.getByRole('tab',{name:'Contact',exact:true}).click();
+ await page.locator('summary').filter({hasText:'Fictional browser support request'}).click();
+ await page.getByText('Fictional support answer',{exact:true}).waitFor();
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:'/tmp/help-contact-mobile.png'});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Contact overflows mobile');
+ await page.getByRole('tab',{name:'Guide',exact:true}).click();
+ await page.getByRole('button',{name:'Back to categories',exact:true}).click();
+ await page.screenshot({path:'/tmp/help-mobile.png'});
+ if(await page.locator('.help-tabs').evaluate(el=>[...el.querySelectorAll('button')].some(b=>b.scrollWidth>b.clientWidth||b.getBoundingClientRect().right>el.getBoundingClientRect().right)))throw new Error('Mobile Help pills overflow');
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Guide overflows mobile');
+ await page.getByRole('tab',{name:'FAQs',exact:true}).click();
+ await page.getByRole('button',{name:'Getting started'}).click();
+ await page.locator('summary').filter({hasText:'Why have I not received my password reset email?'}).click();
+ await page.getByRole('button',{name:'Read guide',exact:true}).first().click();
+ await page.getByRole('heading',{name:'Sign in: fictional browser edit'}).waitFor();
+ await page.getByRole('textbox',{name:'Search help',exact:true}).fill('nonexistent-search-example');
+ await page.getByText('No help articles match your search.',{exact:true}).waitFor();
+ console.log('PASS Help desktop/mobile navigation, FAQ, search, article editing, support submission, inbox reply and receipt');
+}catch(e){console.error(e);if(browser){const p=browser.contexts()[0]?.pages()[0];if(p){await p.screenshot({path:'/tmp/help-error.png'}).catch(()=>{});console.log((await p.locator('main').innerText()).slice(-5000));}}process.exitCode=1;}finally{if(browser)await browser.close();app.kill('SIGTERM');await new Promise(resolve=>{app.once('close',resolve);setTimeout(resolve,5000);});await db.stop();log.close();rmSync(fixture,{recursive:true,force:true});}

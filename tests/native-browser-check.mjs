@@ -1,0 +1,103 @@
+// Optional authenticated browser check. Requires Playwright/Chromium; see the Release 80 report.
+// Copies the app to a temporary directory and serializes the local PGlite test pool only.
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+const require=createRequire(import.meta.url);
+const cliRequire=createRequire(require.resolve('netlify-cli/package.json'));
+const databaseModule=cliRequire.resolve.paths('@netlify/database-dev').map(p=>join(p,'@netlify/database-dev/dist/main.js')).find(existsSync);
+if(!databaseModule)throw new Error('Install the project Netlify CLI dependency first');
+const {NetlifyDB}=await import(pathToFileURL(databaseModule).href);
+import {existsSync,readFileSync,readdirSync,createWriteStream,mkdtempSync,cpSync,symlinkSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {spawn} from 'node:child_process';
+const {chromium}=await import(process.env.LMS_TEST_PLAYWRIGHT_MODULE||'playwright');
+const fixture=mkdtempSync(join(tmpdir(),'native-browser-app-'));
+for(const name of ['app','components','hooks','lib','data','public','assets','vendor','scripts','package.json','tsconfig.json','next.config.ts','next-env.d.ts','postcss.config.mjs'])cpSync(name,join(fixture,name),{recursive:true});
+symlinkSync(process.cwd()+'/node_modules',join(fixture,'node_modules'),'dir');
+writeFileSync(join(fixture,'lib/database-driver.ts'),`import {getDatabase} from '@netlify/database';import {assertMigrationOpen} from './migration-hold';const state=globalThis as typeof globalThis&{__nativeTestDriver?:ReturnType<typeof getDatabase>};export function databaseDriver(){assertMigrationOpen();const d=state.__nativeTestDriver??=getDatabase();d.pool.options.max=1;return d;}`);
+const db=new NetlifyDB({logger:()=>{}});const url=await db.start();
+for(const name of readdirSync('netlify/database/migrations').sort().filter(n=>!n.includes('sample-learner-induction-completion')))await db.exec(readFileSync(`netlify/database/migrations/${name}/migration.sql`,'utf8'));
+await db.exec('SET search_path TO lms_tenant_2,public; UPDATE organisation_settings SET credits_enabled=false; RESET search_path;');
+const log=createWriteStream('/tmp/native-ui-next.log');
+const app=spawn('node',['node_modules/next/dist/bin/next','dev','--webpack','--hostname','127.0.0.1','--port','3010'],{cwd:fixture,env:{...process.env,WATCHPACK_POLLING:'1000',NETLIFY_DB_URL:url,PRIMARK_ADMIN_EMAIL:'operator@example.invalid',PRIMARK_ADMIN_PASSWORD:'FictionalNativeBrowserPassword2026!',LMS_EMAIL_DELIVERY:'disabled',LMS_BACKGROUND_JOBS:'disabled'},stdio:['ignore','pipe','pipe']});app.stdout.pipe(log);app.stderr.pipe(log);
+let browser;
+try{
+ for(let i=0;i<60;i++){try{const r=await fetch('http://127.0.0.1:3010/api/client-brand');if(r.ok)break;}catch{}await new Promise(r=>setTimeout(r,1000));}
+ browser=await chromium.launch({headless:true,...(process.env.LMS_TEST_CHROMIUM?{executablePath:process.env.LMS_TEST_CHROMIUM}:{}),args:['--no-sandbox']});
+ const context=await browser.newContext({viewport:{width:1365,height:900}}),page=await context.newPage();
+ page.on('pageerror',e=>console.log('BROWSER ERROR',e.message));
+ await page.goto('http://127.0.0.1:3010/?client=eazysafe-internal');
+
+ const login=await context.request.post('http://127.0.0.1:3010/api/admin/session',{headers:{origin:'http://127.0.0.1:3010'},data:{email:'operator@example.invalid',password:'FictionalNativeBrowserPassword2026!'}});if(login.status()!==200)throw new Error('Local admin login failed: '+await login.text());
+ await page.goto('http://127.0.0.1:3010/admin/courses');
+ await page.getByRole('button',{name:'Build a course',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Build a course',exact:true}).click();
+ await page.getByLabel('Course name',{exact:true}).fill('FICTIONAL browser demonstration');
+ await page.getByRole('button',{name:'Save & continue',exact:true}).click();
+ await page.getByRole('link',{name:'Open builder',exact:true}).click();
+ await page.getByRole('button',{name:'Not now',exact:true}).click().catch(()=>{});
+ await page.getByRole('button',{name:'Add lesson',exact:true}).click();
+ await page.getByLabel('Lesson title',{exact:true}).fill('Example lesson');
+ await page.locator('.native-edit-block textarea').fill('# Demonstration\nThis is **fictional** content.');
+ await page.getByRole('button',{name:'+ Acknowledgement',exact:true}).click();
+ await page.getByLabel('Statement',{exact:true}).fill('I acknowledge this fictional example.');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Saved'}).waitFor();
+ await page.screenshot({path:'/tmp/native-editor-desktop.png'});
+ await page.getByRole('button',{name:'Preview',exact:true}).click();
+ await page.getByRole('heading',{name:'Demonstration',exact:true}).waitFor();
+ await page.screenshot({path:'/tmp/native-preview-desktop.png'});
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:'/tmp/native-preview-mobile.png'});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Mobile preview overflows');
+
+
+ console.log('PASS authenticated native editor save and preview');
+ const courseId=page.url().split('/courses/')[1].split('/')[0];
+ await page.setViewportSize({width:1365,height:900});
+ await page.getByRole('button',{name:'Edit',exact:true}).click();
+ let fail=true;
+ await page.route('**/api/admin/native-content',async route=>{if(route.request().method()==='POST'&&fail){fail=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary test failure'})});}else await route.continue();});
+ await page.locator('.native-edit-block textarea').first().fill('# Demonstration\nFictional updated content.');
+ await page.getByRole('button',{name:'Retry',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Retry',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Saved'}).waitFor();
+ await page.unroute('**/api/admin/native-content');
+ console.log('PASS failed autosave retains content and retries');
+ const other=await context.newPage();await other.goto(page.url());await other.getByLabel('Lesson title',{exact:true}).waitFor();
+ await page.getByLabel('Lesson title',{exact:true}).fill('Reviewed example lesson');
+ await page.getByRole('status').filter({hasText:'Saved'}).waitFor();
+ await other.getByLabel('Lesson title',{exact:true}).fill('Stale edit');
+ await other.getByRole('alert').filter({hasText:'another session'}).waitFor();
+ await other.close();console.log('PASS stale browser edit is rejected');
+ await page.getByRole('button',{name:'Add lesson',exact:true}).click();
+ await page.getByLabel('Lesson title',{exact:true}).fill('Second example lesson');
+ await page.locator('.native-edit-block textarea').first().fill('Final fictional lesson.');
+ await page.getByRole('button',{name:'Save',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved'}).waitFor();
+ await page.getByRole('button',{name:'Audience & publish',exact:true}).click();
+ await page.locator('.audience-options label').filter({hasText:'Ireland'}).first().click();
+ await page.getByRole('button',{name:'Publish course',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Course published'}).waitFor();console.log('PASS publication from existing course audience workflow');
+ const learnerContext=await browser.newContext({viewport:{width:390,height:844}});const learner=await learnerContext.newPage();
+ await learner.goto('http://127.0.0.1:3010/?client=eazysafe-internal');
+ const registered=await learnerContext.request.post('http://127.0.0.1:3010/api/prototype',{headers:{origin:'http://127.0.0.1:3010'},data:{action:'register',firstName:'Fictional',surname:'Learner',workdayId:'NATIVE-DEMO',email:'native-learner@example.invalid',storeId:'eazysafe-internal',country:'Ireland',registrationCode:'safety',password:'FictionalLearnerPassword2026!'}});
+ if(registered.status()!==200)throw new Error('Registration: '+await registered.text());
+ await learner.goto('http://127.0.0.1:3010/learn/'+courseId);
+ await learner.getByRole('heading',{name:'Reviewed example lesson',exact:true}).waitFor();
+ await learner.getByRole('button',{name:'Not now',exact:true}).click().catch(()=>{});
+ if(await learner.getByRole('button',{name:'Complete lesson',exact:true}).isEnabled())throw new Error('Acknowledgement gate missing');
+ await learner.getByRole('checkbox').click();
+ await learner.getByRole('button',{name:'Complete lesson',exact:true}).click();
+ await learner.getByRole('button',{name:'Completed',exact:true}).waitFor();
+ await learner.getByRole('button',{name:'Second example lesson',exact:true}).click();
+ await learner.reload();await learner.getByRole('heading',{name:'Second example lesson',exact:true}).waitFor();
+ await learner.getByRole('button',{name:'Complete lesson',exact:true}).click();
+ await learner.getByText('Course content complete',{exact:true}).waitFor();
+ if(await learner.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Learner mobile overflow');
+ await learner.screenshot({path:'/tmp/native-learner-mobile.png'});
+ console.log('PASS learner acknowledgement, two lessons, resume and completion on mobile');
+ const certs=await learnerContext.request.get('http://127.0.0.1:3010/api/courses');const results=await certs.json();if(!results.courses.find(c=>c.id===courseId)?.certificate)throw new Error('Certificate missing');
+ console.log('PASS certificate and course tile completion');
+
+}catch(e){console.error(e);process.exitCode=1;}finally{if(browser)await browser.close();app.kill('SIGTERM');await new Promise(resolve=>{app.once('close',resolve);setTimeout(resolve,5000);});await db.stop();log.close();rmSync(fixture,{recursive:true,force:true});}

@@ -1,0 +1,53 @@
+'use client';
+import SettingsSwitch from '@/components/settings-switch';
+import ScheduledReports from './scheduled-reports';
+import type {ReportSchedule} from '@/lib/scheduled-reports';
+import {useFeatures} from '@/hooks/use-features';
+import {useEffect,useState} from 'react';
+import PageHeader from '@/components/page-header';
+import {useLanguage} from '@/components/language-provider';
+import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
+import {NativeSelect} from '@/components/ui/native-select';
+import {emailKinds,emailLabels,type EmailKind,type EmailSettings} from '@/lib/email-types';
+import type {DirectoryStore} from '@/lib/store-directory';
+type Invitation={id:string;name:string;email:string;store_id:string;created_at:string;requested_at:string|null;first_sent_at:string|null;accepted_at:string|null;cancelled_at:string|null;registered:boolean};
+type Log={id:string;kind:EmailKind;status:string;created_at:string;sent_at:string|null;attempts:number;error_code:string|null;provider_id:string|null;email:string};
+type Data={schedules:ReportSchedule[];settings:EmailSettings;stores:DirectoryStore[];connection:{configured:boolean;ready:boolean};invitations:Invitation[];log:Log[];total:{logs:number;invitations:number}};
+export default function EmailAdmin(){
+ const features=useFeatures();
+ const {t,date}=useLanguage(),[data,setData]=useState<Data|null>(null),[tab,setTab]=useState('settings'),[page,setPage]=useState(1),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [savedMode,setSavedMode]=useState<EmailSettings['mode']>('off');
+ const [expiry,setExpiry]=useState('30, 14, 3'),[deadline,setDeadline]=useState('7, 1'),[preview,setPreview]=useState<{Subject:string;HtmlBody:string;TextBody:string}|null>(null),[kind,setKind]=useState<EmailKind|'password_reset'>('expiry_reminder');
+ async function load(){const r=await fetch('/api/admin/emails?page='+page,{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error(d.error);setData(d);setSavedMode(d.settings.mode);setExpiry(d.settings.expiry_days.join(', '));setDeadline(d.settings.deadline_days.join(', '));}
+ useEffect(()=>{void load().catch(e=>setError(e.message));},[page]); // eslint-disable-line react-hooks/exhaustive-deps
+ async function action(body:Record<string,unknown>){
+  setBusy(true);setError('');setNotice('');try{const r=await fetch('/api/admin/emails',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw new Error(d.error);if(['preview','report_preview'].includes(String(body.action)))setPreview(d);else{await load();setNotice('Saved');}return true;}catch(e){setError(e instanceof Error?e.message:'Please try again.');return false;}finally{setBusy(false);}
+ }
+ const update=(patch:Partial<EmailSettings>)=>data&&setData({...data,settings:{...data.settings,...patch}});
+ const numbers=(value:string)=>value.trim()?value.split(',').map(x=>Number(x.trim())):[];
+ const modes={off:'Off',preview:'Preview',live:'Live'};
+ const statuses:Record<string,string>={queued:'Queued',sending:'Sending…',sent:'Accepted by email provider',failed:'Failed',cancelled:'Cancelled',unknown:'Delivery uncertain'};
+ return <div className="shell course-admin"><PageHeader title={t('Email notifications')} view="emails"/><main className="main email-admin">
+ <nav className="email-tabs pill-switch" aria-label={t('Email notifications')}>{[['settings','Settings'],['reports','Scheduled reports'],['previews','Email previews'],['invitations','Invitations'],['log','Delivery log']].map(([value,label])=><button key={value} type="button" aria-pressed={tab===value} onClick={()=>{setTab(value);setPage(1);setPreview(null);}}>{t(label)}</button>)}</nav>
+ {error&&<p className="error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}
+ {!data?<p role="status">{t('Loading…')}</p>:<>
+ <div className="email-mode" role="status"><strong>{t(modes[savedMode])}</strong><span>{t(savedMode==='live'&&data.connection.ready?'Live email is enabled.':'Live sending is disabled. Previews do not send emails.')}</span></div>
+ {!features.email_notifications&&<p role="status">{t('This feature is switched off in Settings.')}</p>}
+ {tab==='settings'&&<section className="paper course-editor"><h2>{t('Email settings')}</h2><form onSubmit={e=>{e.preventDefault();void action({action:'settings',...data.settings,expiry_days:numbers(expiry),deadline_days:numbers(deadline)});}}><fieldset disabled={busy||!features.email_notifications}>
+ <div className="email-fields"><label>{t('Mode')}<NativeSelect value={data.settings.mode} onChange={e=>update({mode:e.target.value as EmailSettings['mode']})}><option value="off">{t('Off')}</option><option value="preview">{t('Preview')}</option><option value="live" disabled={!data.connection.ready}>{t('Live')}</option></NativeSelect></label>
+ <label>{t('Expiry reminders: days before expiry')}<Input value={expiry} onChange={e=>setExpiry(e.target.value)} placeholder="30, 14, 3" required/></label><label>{t('Deadline reminders: days before due date')}<Input value={deadline} onChange={e=>setDeadline(e.target.value)} placeholder="7, 1"/></label><label>{t('Invitation reminder: hours after sending')}<Input type="number" min={1} max={168} required value={data.settings.invitation_hours} onChange={e=>update({invitation_hours:Number(e.target.value)})}/></label></div>
+ <p className="access-note">{t('Configure timing under Scheduled reports. Emails are in English.')}</p>
+ <div className="email-notification-settings">{emailKinds.map(k=><div className="email-notification-row" key={k}><span>{t(emailLabels[k])}</span><SettingsSwitch label={t(emailLabels[k])} checked={data.settings.enabled.includes(k)} disabled={busy||!features.email_notifications} onCheckedChange={checked=>update({enabled:checked?[...data.settings.enabled,k]:data.settings.enabled.filter(x=>x!==k)})}/></div>)}</div>
+ </fieldset><Button disabled={busy} className="blue-button">{t(busy?'Saving…':'Save settings')}</Button></form></section>}
+ {tab==='reports'&&<><ScheduledReports schedules={data.schedules} stores={data.stores} busy={busy} action={action} enabled={data.settings.enabled}/>{preview&&<section className="paper course-editor"><h3>{preview.Subject}</h3><iframe title={t('Email preview')} sandbox="" srcDoc={preview.HtmlBody}/><details><summary>{t('Plain text')}</summary><pre>{preview.TextBody}</pre></details></section>}</>}
+ {tab==='previews'&&<section className="paper course-editor"><h2>{t('Email previews')}</h2><p>{t('Sample data only. Nothing is sent or queued.')}</p><div className="email-preview-controls"><label>{t('Template')}<NativeSelect value={kind} onChange={e=>{setKind(e.target.value as typeof kind);setPreview(null);}}>{emailKinds.map(k=><option key={k} value={k}>{t(emailLabels[k])}</option>)}<option value="password_reset">{t('Reset password')}</option></NativeSelect></label><Button disabled={busy} onClick={()=>void action({action:'preview',kind})}>{t('Preview')}</Button></div>
+ {preview&&<><h3>{preview.Subject}</h3><iframe title={t('Email preview')} sandbox="" srcDoc={preview.HtmlBody}/><details><summary>{t('Plain text')}</summary><pre>{preview.TextBody}</pre></details></>}</section>}
+ {tab==='invitations'&&<><section className="paper course-editor"><h2>{t('Prepare invitation')}</h2><p>{t('Prepare an invitation for someone who has not created an account. Queue it when live email is enabled.')}</p><form onSubmit={async e=>{e.preventDefault();const f=e.currentTarget;if(await action({action:'invite',...Object.fromEntries(new FormData(f))}))f.reset();}}><fieldset className="email-fields" disabled={busy||!features.email_notifications}><label>{t('Name')}<Input name="name" required minLength={2} maxLength={101}/></label><label>{t('Email')}<Input name="email" type="email" required maxLength={254}/></label><label>{t('Store')}<NativeSelect name="storeId" required><option value="">{t('Choose a store.')}</option>{data.stores.filter(s=>s.active).map(s=><option key={s.id} value={s.id}>{s.name} · {s.country}</option>)}</NativeSelect></label></fieldset><Button disabled={busy}>{t('Prepare invitation')}</Button></form></section>
+ <section className="paper course-editor"><h2>{t('Invitations')}</h2><div className="email-table" role="region" aria-label={t('Invitations')} tabIndex={0}><table><thead><tr><th>{t('Name')}</th><th>{t('Email')}</th><th>{t('Status')}</th><th>{t('Actions')}</th></tr></thead><tbody>{data.invitations.map(i=><tr key={i.id}><td>{i.name}</td><td>{i.email}</td><td>{t(i.cancelled_at?'Cancelled':i.registered||i.accepted_at?'Account created':i.first_sent_at?'Sent':i.requested_at?'Queued':'Draft')}{i.first_sent_at&&<small>{date(i.first_sent_at)}</small>}</td><td>{!i.cancelled_at&&!i.accepted_at&&!i.registered&&<><Button disabled={busy||!data.connection.ready||savedMode!=='live'||!!i.first_sent_at} onClick={()=>void action({action:'queue',id:i.id})}>{t('Queue invitation')}</Button><Button variant="outline" disabled={busy} onClick={()=>void action({action:'cancel',id:i.id})}>{t('Cancel')}</Button></>}</td></tr>)}</tbody></table></div>{!data.invitations.length&&<p>{t('No invitations yet.')}</p>}</section></>}
+ {tab==='log'&&<section className="paper course-editor"><h2>{t('Delivery log')}</h2><p>{t('Accepted means the email provider accepted the message. It does not confirm inbox delivery. Uncertain sends are not automatically retried.')}</p><div className="email-table" role="region" aria-label={t('Delivery log')} tabIndex={0}><table><thead><tr><th>{t('Email')}</th><th>{t('Template')}</th><th>{t('Status')}</th><th>{t('Date')}</th></tr></thead><tbody>{data.log.map(l=><tr key={l.id}><td>{l.email}</td><td>{t(emailLabels[l.kind]||l.kind)}</td><td>{t(statuses[l.status]||l.status)}{l.error_code&&<small>{l.error_code}</small>}{l.provider_id&&<small>{l.provider_id}</small>}</td><td>{date(l.sent_at||l.created_at)}</td></tr>)}</tbody></table></div>{!data.log.length&&<p>{t('No emails have been queued.')}</p>}</section>}
+ {['invitations','log'].includes(tab)&&<div className="email-pagination"><Button variant="outline" disabled={busy||page===1} onClick={()=>setPage(page-1)}>{t('Previous')}</Button><span>{page}</span><Button variant="outline" disabled={busy||page*25>=(tab==='log'?data.total.logs:data.total.invitations)} onClick={()=>setPage(page+1)}>{t('Next')}</Button></div>}
+ </>}
+ </main></div>;
+}
+

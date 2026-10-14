@@ -1,0 +1,10 @@
+import type {ReportingAccess} from '@/lib/reporting-types';
+import type {DirectoryStore} from '@/lib/store-directory';
+export type UserPerson={hr_managed?:boolean;department_id?:string|null;department_name?:string|null;job_role_id?:string|null;job_role_name?:string|null;employment_started_on?:string|null;employment_ended_on?:string|null;lifecycle_reason?:string|null;id:string;name:string;email:string;workday_id:string|null;legacy_access_code:string|null;country:string;store_id:string;archived_at:string|null;entered_at:string;last_login_at:string|null;admin_only:boolean;
+  reporting_unit_ids?:string[];scope:ReportingAccess['scope']|null;reporting_country:string|null;reporting_site_id:string|null;manager_store_id:string|null;platform_admin:boolean;
+  revision:string;canEdit:boolean;canArchive:boolean;canEditDetails:boolean};
+export type UserOptions={hierarchy?:import("./hierarchy-types").OrganisationHierarchy;departments:import("./registration-types").Department[];employeeIdLabel:string;jobRoles:import("@/lib/job-role-types").JobRole[];roles:string[];stores:DirectoryStore[];access:ReportingAccess;platformAdmin:boolean;canAssign:boolean;canEdit:boolean};
+export type UserDirectoryData=UserOptions&{people:UserPerson[];total:number;page:number;pageSize:number;summary:{total:number;stores:number;countries:number}};
+export type UserRole='learner'|'site'|'manager'|'unit'|'country'|'organisation'|'platform';
+export const userRole=(person:UserPerson):UserRole=>person.platform_admin?'platform':person.scope==='organisation'?'organisation':person.scope==='country'?'country':person.scope==='unit'?'unit':person.manager_store_id?'manager':person.scope==='site'?'site':'learner';
+export const userRoleLabels:Record<UserRole,string>={learner:'Learner',site:'Site reporting admin',manager:'Store Manager',unit:'Group administrator',country:'Country reporting admin',organisation:'Primark reporting admin',platform:'Platform admin'};

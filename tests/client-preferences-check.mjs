@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {build} from 'esbuild';
+const dir=mkdtempSync(join(tmpdir(),'client-preferences-'));
+try{
+ await build({stdin:{loader:'tsx',contents:"export * from './lib/client-preferences';export * from './lib/ui-copy';export * from './lib/email-templates';export * from './lib/locales/application-email-template-fr';import React from 'react';import {renderToStaticMarkup} from 'react-dom/server';import {BrandingProvider} from './components/branding-provider';import {LanguageProvider} from './components/language-provider';import Fields from './components/client-preferences-fields';export const renderFields=(brand)=>renderToStaticMarkup(<BrandingProvider brand={brand}><LanguageProvider><Fields value={brand} onChange={()=>{}}/></LanguageProvider></BrandingProvider>);",resolveDir:process.cwd()},banner:{js:"import {createRequire} from 'node:module';const require=createRequire(import.meta.url);"},bundle:true,platform:'node',format:'esm',outfile:join(dir,'test.mjs')});
+ const {resolveClientLanguage,languagePreferenceKey,tr,renderLearningEmail,emailTemplateFrenchCopy,renderFields}=await import(join(dir,'test.mjs'));
+ const french={id:7,slug:'french',name:'French Client',logo_url:'/branding/eazysafe-logo.png',theme_color:'#123456',revision:1,default_language:'fr',location_term:'store'};
+ const markup=renderFields(french);assert(markup.includes('Langue par défaut'));assert(markup.includes('value="fr" selected=""'));assert(markup.includes('value="site">Sites'));assert(markup.includes('value="store" selected="">Magasins'));
+ assert.equal(resolveClientLanguage(french,null,null,'en'),'fr');
+ assert.equal(resolveClientLanguage(french,'de',null),'de');
+ assert.equal(resolveClientLanguage(french,'de','fr'),'de');
+ assert.equal(resolveClientLanguage(french,null,'ar'),'ar');
+ assert.equal(resolveClientLanguage(french,'xx','xx'),'fr');
+ assert.equal(resolveClientLanguage({...french,default_language:'ar'},null,null),'ar');
+ assert.equal(resolveClientLanguage({...french,default_language:'en',location_term:null},null,null,'it'),'it');
+ assert.equal(resolveClientLanguage({...french,location_term:null},null,null,'en'),'fr');
+ assert.notEqual(languagePreferenceKey('french'),languagePreferenceKey('irish'));
+ assert.equal(tr('fr','Site name',undefined,'store'),'Nom du magasin');
+ assert.equal(tr('fr','Store Manager',undefined,'site'),'Responsable de site');
+ assert.equal(tr('en','Site matrix',undefined,'store'),'Store matrix');
+ assert.equal(tr('en','Store Manager',undefined,null),'Store Manager');
+ assert.equal(tr('fr','{count} sites',{count:3},'store'),'3 magasins');
+ assert.equal(tr('fr','Unknown authored store title',undefined,'site'),'Unknown authored store title');
+ const mail=renderLearningEmail('manager_digest',{name:'Store Manager <script>',store:'Store Site Ltd',overdue:3},'https://example.invalid',undefined,{...french,location_term:'site'});
+ assert(mail.TextBody.includes('Store Site Ltd'));assert(mail.TextBody.includes('votre site'));assert(!mail.TextBody.includes('{store}'));assert(mail.HtmlBody.includes('&lt;script&gt;'));assert(mail.HtmlBody.includes('lang="fr"'));assert(mail.TextBody.includes('client=french'));
+ const course=renderLearningEmail('course_assigned',{name:'Jean',title:'Site Store Course',date:'2026-11-01'},'https://example.invalid',undefined,french);
+ assert(course.TextBody.includes('Site Store Course'));assert(course.TextBody.includes('vous a été attribuée'));assert(course.TextBody.includes('novembre'));
+ const reset=renderLearningEmail('password_reset',{name:'Jean'},'https://example.invalid',undefined,french);
+ assert(reset.HtmlBody.includes('lang="fr"'));assert(reset.TextBody.includes('lang=fr'));
+ const tokens=s=>[...s.matchAll(/\{(\w+)\}/g)].map(m=>m[1]).sort();
+ for(const [key,value]of Object.entries(emailTemplateFrenchCopy))assert.deepEqual(tokens(key),tokens(value),key);
+ console.log('PASS client language precedence, legacy retention, tenant keys, location labels, interpolation and French emails');
+}finally{rmSync(dir,{recursive:true,force:true});}
