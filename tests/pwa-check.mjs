@@ -21,7 +21,7 @@ try{
   for(const size of [180,192,512]){const bytes=await renderPwaIcon(client,size);const meta=await sharp(bytes).metadata();assert.equal(meta.width,size);assert.equal(meta.height,size);assert.equal(meta.format,'png');}
  }
  // Uploaded PNG/JPG/WebP logos are supported without fetching arbitrary URLs.
- for(const format of ['png','jpeg','webp']){const data=await sharp({create:{width:100,height:200,channels:3,background:'#335577'}}).toFormat(format).toBuffer();const icon=await renderPwaIcon({...brand,logo_url:`data:image/${format};base64,${data.toString('base64')}`},192);assert.equal((await sharp(icon).metadata()).width,192);}
+ for(const format of ['png','jpeg','webp']){const data=await sharp({create:{width:100,height:200,channels:3,background:'#335577'}}).toFormat(format).toBuffer();const icon=await renderPwaIcon({...brand,slug:'uploaded-client',logo_url:`data:image/${format};base64,${data.toString('base64')}`},192);assert.equal((await sharp(icon).metadata()).width,192);}
  await assert.rejects(()=>renderPwaIcon({...brand,logo_url:'https://example.test/logo.png'},192));
  assert.equal((await iconRoute.GET(new Request('https://lms.test/api/pwa/icon?size=10000'))).status,400);
  const {NextRequest}=require('next/server');
@@ -29,8 +29,9 @@ try{
  const response=proxy(new NextRequest('https://lms.test/api/pwa/manifest?client=primark',{headers:{cookie:'lms_client=eazysafe-internal; primark_session=test'}}));
  assert.equal(response.headers.get('set-cookie'),null);assert.equal(response.headers.get('x-middleware-request-x-lms-client'),'primark');
  const launch=proxy(new NextRequest('https://lms.test/?client=primark',{headers:{cookie:'lms_client=eazysafe-internal; primark_session=test'}}));assert.match(launch.headers.get('set-cookie'),/lms_client=primark/);
- const legacy=proxy(new NextRequest('https://lms.test/?client=fit2trade',{headers:{cookie:'lms_client=eazysafe-internal; primark_session=existing', 'x-lms-expected-client':'eazysafe-internal'}}));
- assert.equal(legacy.headers.get('x-middleware-request-x-lms-client'),'fit2trade');assert.match(legacy.headers.get('set-cookie'),/lms_client=fit2trade/);assert.doesNotMatch(legacy.headers.get('set-cookie'),/primark_session/);assert.match(legacy.headers.get('x-middleware-request-cookie'),/primark_session=existing/);
+ const legacy=proxy(new NextRequest('https://lms.test/?client=fit2trade',{headers:{cookie:'lms_client=eazysafe-internal; primark_session=existing; primark_admin=operator'}}));
+ assert.equal(legacy.headers.get('x-middleware-request-x-lms-client'),'fit2trade');assert.match(legacy.headers.get('set-cookie'),/lms_client=fit2trade/);assert.match(legacy.headers.get('set-cookie'),/primark_session=;/);assert.doesNotMatch(legacy.headers.get('x-middleware-request-cookie'),/primark_session/);assert.match(legacy.headers.get('x-middleware-request-cookie'),/primark_admin=operator/);
+ assert.equal(proxy(new NextRequest('https://lms.test/api/users',{headers:{cookie:'lms_client=eazysafe-internal','x-lms-expected-client':'eazysafe-internal'}})).status,409);
  assert.equal(proxy(new NextRequest('https://lms.test/')).headers.get('x-middleware-request-x-lms-client'),'fit2trade');
  assert.equal(proxy(new NextRequest('https://lms.test/?client=primark',{headers:{'x-lms-expected-client':'fit2trade'}})).status,409);
  const events={},entries=new Map(),deleted=[],fetches=[];let fail=false,claimed=false;
