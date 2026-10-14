@@ -4,7 +4,7 @@ import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import {CourseError} from './course-admin';
 import {normaliseImage} from './image-validation';
 import {controlQuery,controlTransaction} from './control-database';
-import {DEFAULT_BRAND,validLogo,portalUrl,type Tenant} from './tenant-types';
+import {canonicalClientSlug,DEFAULT_BRAND,validLogo,portalUrl,type Tenant} from './tenant-types';
 import {validateRegistration} from './registration-settings';
 import {featureCatalogue,type FeatureId} from './feature-catalogue';
 import {credentials} from './admin-auth';
@@ -16,6 +16,7 @@ export async function setupClient(b:Record<string,unknown>,actor:string){
  if(!b||typeof b!=='object'||!/^[-a-f0-9]{36}$/i.test(String(b.requestId))||!/^\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$/.test(String(b.requestId)))throw new CourseError('Reload the client setup and try again.');
  const name=clean(b.name),slug=clean(b.slug).toLowerCase(),logo=b.logo_url||DEFAULT_BRAND.logo_url,color=clean(b.theme_color).toLowerCase();
  if(name.length<2||name.length>100)throw new CourseError('Enter a client name with 2–100 characters.');
+ if(canonicalClientSlug(slug)===DEFAULT_BRAND.slug)throw new CourseError('That portal address is already in use.',409);
  if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)||slug.length<2||slug.length>60)throw new CourseError('Use 2–60 lowercase letters, numbers and hyphens for the portal address.');
  if(!validLogo(logo)||!/^#[a-f0-9]{6}$/.test(color))throw new CourseError('Check the client logo and theme colour.');
  const language=b.default_language===undefined?'en':b.default_language,locationTerm=b.location_term===undefined?'site':b.location_term;

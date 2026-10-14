@@ -18,9 +18,10 @@ import {pglitePool} from './tenant-fixture.mjs';
 const require=createRequire(import.meta.url),pg=new PGlite(),context=new AsyncLocalStorage();
 const env={...process.env};process.env.F2T_PLATFORM_ADMIN_EMAIL='operator@test.invalid';process.env.F2T_PLATFORM_ADMIN_PASSWORD='fixture-platform-password-long';
 const migrations=readdirSync('netlify/database/migrations').sort();
+const brandingMigration='20261014141500_fit2trade-branding';
 for(const n of migrations.filter(n=>n<'20261011170000'))await pg.exec(readFileSync(`netlify/database/migrations/${n}/migration.sql`,'utf8'));
 await pg.exec("INSERT INTO learners(id,name,email,code_hash,store_id,country,entered_at) VALUES('preserved','Original Primark learner','original@test.invalid','unused','original','Ireland','2026-10-11')");
-for(const n of migrations.filter(n=>n>='20261011170000'))await pg.exec(readFileSync(`netlify/database/migrations/${n}/migration.sql`,'utf8'));
+for(const n of migrations.filter(n=>n>='20261011170000'&&n!==brandingMigration))await pg.exec(readFileSync(`netlify/database/migrations/${n}/migration.sql`,'utf8'));
 const pool=pglitePool(pg),objects=new Map();
 const store=options=>{const name=typeof options==='string'?options:options.name;if(!objects.has(name))objects.set(name,new Map());const map=objects.get(name);return {getMetadata:async k=>map.has(k)?{etag:'test',metadata:{}}:null,get:async(k,o)=>map.get(k)??null,set:async(k,v,o={})=>{if(o.onlyIfNew&&map.has(k))return {modified:false};map.set(k,v);return {modified:true}},setJSON:async(k,v)=>{map.set(k,v)},delete:async k=>map.delete(k)};};
 globalThis.__tenantTest={pool,store,cookie:()=>context.getStore()?.cookie||'',client:()=>context.getStore()?.client||null};
@@ -104,6 +105,21 @@ const call=(mod,method,path,body,client='primark',cookie='')=>run(client,()=>mod
 const cookieFrom=(r,n)=>n+'='+r.headers.get('set-cookie').match(new RegExp(n+'=([^;,]+)'))[1];
 let operator,primary,internal,primaryCookie,internalCookie;
 try{
+ await check('Fit2Trade branding preserves client identity, site references and existing sessions across deployment',async()=>{
+  const before=await m.tenant.tenantBySlug('fit2trade');assert.equal(before.id,2);assert.equal(before.slug,'fit2trade');assert.equal(before.name,'EazySafe Internal');
+  const sql=readFileSync(`netlify/database/migrations/${brandingMigration}/migration.sql`,'utf8');
+  await pg.exec('BEGIN');
+  try{
+   await pg.exec("INSERT INTO lms_tenant_2.learners(id,name,email,code_hash,store_id,country,entered_at) VALUES('branding-fixture','Preserved learner','branding@test.invalid','unused','eazysafe-internal','Ireland',now()::text); INSERT INTO lms_tenant_2.sessions(token_hash,learner_id,expires_at) VALUES('branding-token','branding-fixture','2099-01-01')");
+   await pg.exec(sql);
+   assert.equal((await q("SELECT store_id FROM lms_tenant_2.learners WHERE id='branding-fixture'"))[0].store_id,'eazysafe-internal');
+   assert.equal((await q("SELECT learner_id FROM lms_tenant_2.sessions WHERE token_hash='branding-token'"))[0].learner_id,'branding-fixture');
+   const after=await m.tenant.tenantBySlug('fit2trade');assert.equal(after.name,'Fit2Trade');assert.equal(after.theme_color,'#2E6052');assert.equal(after.logo_url,'/branding/fit2trade-logo.svg');assert.equal(after.schema_name,before.schema_name);assert.equal(after.role_name,before.role_name);assert.equal(after.revision,before.revision+1);
+   assert.equal((await m.tenant.tenantBySlug('eazysafe-internal')).id,2);
+   assert.equal((await m.tenant.tenantBySlug('primark')).theme_color,'#008bc9');
+  }finally{await pg.exec('ROLLBACK');}
+  await pg.exec(sql);
+ });
  await check('HR credentials and employee writes are tenant scoped',async()=>{
   assert.equal((await call(m.hrAdmin,'GET','/api/admin/integrations',undefined,'primark')).status,403);
   const token='hr_'+'d'.repeat(64);
@@ -116,11 +132,11 @@ try{
   assert.equal((await query('eazysafe-internal','SELECT * FROM hr_credentials')).length,0);
   assert.equal((await query('eazysafe-internal','SELECT * FROM hr_events')).length,0);
  });
- await check('Migration preserves Primark data and seeds an independent clean EazySafe Internal client',async()=>{
-  const clients=await q('SELECT id,name,slug FROM lms_clients ORDER BY id');assert.deepEqual(clients.map(x=>x.name),['Primark','EazySafe Internal']);assert.equal((await q("SELECT name FROM public.learners WHERE id='preserved'"))[0].name,'Original Primark learner');
+ await check('Migration preserves Primark data and seeds an independent clean Fit2Trade client',async()=>{
+  const clients=await q('SELECT id,name,slug FROM lms_clients ORDER BY id');assert.deepEqual(clients.map(x=>x.name),['Primark','Fit2Trade']);assert.equal(clients[1].slug,'eazysafe-internal');assert.equal((await q("SELECT name FROM public.learners WHERE id='preserved'"))[0].name,'Original Primark learner');
   for(const table of ['learners','courses','course_packages','certificates','assignment_history','email_outbox','learning_invitations'])assert.equal(Number((await q(`SELECT count(*) AS n FROM lms_tenant_2.${table}`))[0].n),0,table);
   assert.equal((await query('eazysafe-internal','SELECT credits_enabled FROM organisation_settings'))[0].credits_enabled,false);
-  const stores=await run('eazysafe-internal',()=>m.directory.storeDirectory());assert.equal(stores.length,1);assert.equal(stores[0].name,'EazySafe Internal');
+  const stores=await run('eazysafe-internal',()=>m.directory.storeDirectory());assert.equal(stores.length,1);assert.equal(stores[0].name,'Fit2Trade');
  });
  await check('All 88 tables, foreign keys and functions are cloned into each client boundary',async()=>{
   assert.equal((await q('SELECT count(*)::int AS n FROM public.lms_schema_tables'))[0].n,88);
@@ -152,7 +168,13 @@ try{
  });
  await check('Platform operators manage clients; client administrators and learners cannot',async()=>{
   const login=await call(m.session,'POST','/api/admin/session',{email:process.env.F2T_PLATFORM_ADMIN_EMAIL,password:process.env.F2T_PLATFORM_ADMIN_PASSWORD},'eazysafe-internal');assert.equal(login.status,200,await login.clone().text());operator=cookieFrom(login,'primark_admin');
-  assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',operator)).status,200);
+  const listed=await call(m.clients,'GET','/api/admin/clients',null,'primark',operator);assert.equal(listed.status,200);const brand=(await listed.json()).clients.find(c=>c.id===2);assert.equal(brand.name,'Fit2Trade');assert.equal(brand.slug,'fit2trade');assert.equal(brand.theme_color,'#2E6052');
+  for(const slug of ['fit2trade','eazysafe-internal']){
+   assert.equal((await call(m.clients,'POST','/api/admin/clients',{name:'Duplicate portal',slug},'fit2trade',operator)).status,409);
+   assert.equal((await call(m.setup,'POST','/api/admin/clients/setup',{requestId:'11111111-1111-4111-8111-111111111111',name:'Duplicate portal',slug},'fit2trade',operator)).status,409);
+  }
+  const settings=await (await call(m.clientEdit,'GET','/api/admin/clients/settings?id=2',null,'fit2trade',operator)).json();assert.equal(settings.client.slug,'fit2trade');
+  const saved=await call(m.clientEdit,'PATCH','/api/admin/clients/settings?id=2',settings,'fit2trade',operator);assert.equal(saved.status,200,await saved.clone().text());assert.equal((await query('fit2trade','SELECT features FROM organisation_settings'))[0].features.job_roles.enabled,true);
   assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',primaryCookie)).status,403);
   await q("INSERT INTO public.platform_admins(learner_id,assigned_by,updated_at) VALUES($1,'test',now()::text)",[primary.id]);
   assert.equal((await call(m.clients,'GET','/api/admin/clients',null,'primark',primaryCookie)).status,403);
@@ -188,12 +210,12 @@ try{
  });
  await check('Email links, certificates and theme contrast retain the selected client',async()=>{
   const brand=await run('eazysafe-internal',()=>m.tenant.currentTenant());const email=m.email.renderLearningEmail('invitation',{name:'Test'},'https://lms.test', 'test-token',brand);
-  assert(email.TextBody.includes('client=eazysafe-internal'));assert(email.HtmlBody.includes('#e8002a'));assert(!email.HtmlBody.includes('PRIMARK'));assert(email.HtmlBody.includes('/api/client-logo?client=eazysafe-internal'));
+  assert(email.TextBody.includes('client=fit2trade'));assert(email.HtmlBody.toLowerCase().includes('#2e6052'));assert(!email.HtmlBody.includes('PRIMARK'));assert(email.HtmlBody.includes('/api/client-logo?client=fit2trade'));
   assert.equal(m.branding.themeVariables('#ffffff')['--brand-contrast'],'#17212b');assert.equal(m.branding.themeVariables('#111111')['--brand-contrast'],'#ffffff');assert.equal(m.branding.portalUrl('primark','/verify/token?lang=en#section'),'/verify/token?lang=en&client=primark#section');
  });
  await check('Spoofed routing headers are replaced and stale tabs cannot write to a newly selected client',async()=>{
   const r=req('/api/users','POST',{},'lms_client=eazysafe-internal');r.headers.set('x-lms-client','primark');
-  const resolved=m.proxy.proxy(r);assert.equal(resolved.requestHeaders.get('x-lms-client'),'eazysafe-internal');
+  const resolved=m.proxy.proxy(r);assert.equal(resolved.requestHeaders.get('x-lms-client'),'fit2trade');
   r.headers.set('x-lms-expected-client','primark');const denied=m.proxy.proxy(r);assert.equal(denied.status,409);
  });
  await check('Background processing iterates clients with a separately authorised context',async()=>{
@@ -205,7 +227,7 @@ try{
    Object.assign(process.env,{LMS_EMAIL_DELIVERY:'enabled',CONTEXT:'production',POSTMARK_SERVER_TOKEN:'fixture-only',POSTMARK_FROM_EMAIL:'fixture@test.invalid',PRIMARK_APP_URL:'https://test.invalid'});
    globalThis.fetch=async(_url,options)=>{mail=JSON.parse(options.body);return Response.json({ErrorCode:0})};
    await run('eazysafe-internal',()=>m.recovery.requestPasswordReset('shared@test.invalid','en',true));
-   assert(mail.TextBody.includes('client=eazysafe-internal'));const token=mail.TextBody.match(/#token=([a-f0-9]{64})/)[1];
+   assert(mail.TextBody.includes('client=fit2trade'));const token=mail.TextBody.match(/#token=([a-f0-9]{64})/)[1];
    await assert.rejects(run('primark',()=>m.recovery.resetPassword(token,'Changed-internal-password')),/expired/);
    await run('eazysafe-internal',()=>m.recovery.resetPassword(token,'Changed-internal-password'));
    await assert.rejects(run('eazysafe-internal',()=>m.recovery.resetPassword(token,'Another-password')),/expired/);

@@ -4,7 +4,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {controlTransaction} from './control-database';
 import {inClientScope,inTransaction} from './database';
 import {CourseError} from './course-admin';
-import {publicBrand,validLogo,type Tenant} from './tenant-types';
+import {canonicalClientSlug,publicBrand,validLogo,type Tenant} from './tenant-types';
 import {featureCatalogue,type FeatureChoices} from './feature-catalogue';
 import {validateRegistration} from './registration-settings';
 import type {ClientEdit,EditableSite} from './client-edit-types';
@@ -19,7 +19,9 @@ async function snapshot(tenant:Tenant){return inTransaction(async tx=>{
  const registration=(await tx.query('SELECT * FROM registration_settings WHERE id=1')).rows[0];
  const settings=(await tx.query('SELECT * FROM organisation_settings WHERE id=1')).rows[0];
  if(!registration||!settings)throw new CourseError('Organisation settings are unavailable.',503);
- const choices=structuredClone(settings.features) as FeatureChoices;
+ // Legacy clients can retain retired feature keys; the editor handles the current catalogue.
+ const storedChoices=settings.features as FeatureChoices;
+ const choices=Object.fromEntries(featureCatalogue.map(f=>[f.id,structuredClone(storedChoices[f.id])])) as FeatureChoices;
  for(const f of featureCatalogue)if('legacy' in f)choices[f.id].enabled=!!settings[f.legacy];
  return {client:publicBrand(tenant),sites,departments,registration,choices,revisionToken:hash([tenant.revision,sites,departments,registration,settings.revision])};
 });}
@@ -60,7 +62,7 @@ export async function saveClientSettings(id:number,b:ClientEdit,actor:string){
   const row=(await control.query('SELECT * FROM public.lms_clients WHERE id=$1 AND active FOR UPDATE',[id])).rows[0];
   if(!row)throw new CourseError('Choose a client.',404);
   const tenant={...row,id:Number(row.id)} as Tenant;
-  if(tenant.slug!==b.client.slug||tenant.revision!==b.client.revision)throw conflict();
+  if(canonicalClientSlug(tenant.slug)!==canonicalClientSlug(b.client.slug)||tenant.revision!==b.client.revision)throw conflict();
   const language=b.client.default_language??tenant.default_language??'en',locationTerm=b.client.location_term===undefined?tenant.location_term??null:b.client.location_term;
   // Registry writes are provisional until the client-scoped phase succeeds.
   await control.query('UPDATE public.lms_clients SET name=$1,logo_url=$2,theme_color=$3,login_background=$5,default_language=$6,location_term=$7,revision=revision+1,updated_at=now() WHERE id=$4',[name,b.client.logo_url,color,id,background===undefined||b.client.login_background===tenant.login_background?tenant.login_background??null:background,language,locationTerm]);
@@ -86,7 +88,7 @@ export async function saveClientSettings(id:number,b:ClientEdit,actor:string){
    for(const d of departments){if(d.id)await tx.query('UPDATE organisation_departments SET name=$1,archived=$2 WHERE id=$3',[d.name,d.archived,d.id]);else await tx.query('INSERT INTO organisation_departments(id,name,archived) VALUES($1,$2,$3)',[randomUUID(),d.name,d.archived]);}
    await tx.query('UPDATE registration_settings SET self_registration_enabled=$1,employee_id_label=$2,employee_id_required=$3,registration_code=$4,revision=revision+1 WHERE id=1',[registration.self_registration_enabled,registration.employee_id_label,registration.employee_id_required,registration.registration_code]);
    const before=(await tx.query('SELECT * FROM organisation_settings WHERE id=1')).rows[0];
-   const next=(await tx.query('UPDATE organisation_settings SET features=$1,revision=revision+1,updated_at=now(),updated_by=$2 WHERE id=1 RETURNING *',[JSON.stringify(choices),actor])).rows[0];
+   const next=(await tx.query('UPDATE organisation_settings SET features=features||$1::jsonb,revision=revision+1,updated_at=now(),updated_by=$2 WHERE id=1 RETURNING *',[JSON.stringify(choices),actor])).rows[0];
    await tx.query('INSERT INTO organisation_settings_audit(actor,previous_state,next_state) VALUES($1,$2,$3)',[actor,JSON.stringify(before),JSON.stringify(next)]);
    const groups={assignment_emails:['course_assigned','pathway_assigned'],registration_reminders:['invitation_reminder','account_reminder'],expiry_reminders:['expiry_reminder','expired'],weekly_store_reports:['manager_digest'],monthly_country_reports:['country_digest']};
    const forced=Object.entries(groups).filter(([id])=>choices[id as keyof typeof choices].policy==='required').flatMap(([,kinds])=>kinds);

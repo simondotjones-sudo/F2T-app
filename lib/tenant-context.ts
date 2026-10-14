@@ -3,13 +3,14 @@ import {cookies,headers} from 'next/headers';
 import {cache} from 'react';
 import {notFound} from 'next/navigation';
 import {controlQuery} from './control-database';
-import {DEFAULT_BRAND,type Tenant} from './tenant-types';
+import {DEFAULT_BRAND,canonicalClientSlug,type Tenant} from './tenant-types';
 const jobContext=new AsyncLocalStorage<Tenant>();
 export const CLIENT_COOKIE='lms_client';
 export async function tenantBySlug(slug:string):Promise<Tenant|null>{
  if(!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)||slug.length>60)return null;
- const row=(await controlQuery<Tenant>('SELECT * FROM public.lms_clients WHERE slug=$1 AND active',[slug])).rows[0];
- return row?{...row,id:Number(row.id)}:null;
+ // Keep the registry slug stable so old deployments and portal links remain valid.
+ const row=(await controlQuery<Tenant>('SELECT * FROM public.lms_clients WHERE active AND (slug=$1 OR ($1=$2 AND id=$3 AND slug=$4)) ORDER BY (slug=$1) DESC LIMIT 1',[canonicalClientSlug(slug),DEFAULT_BRAND.slug,DEFAULT_BRAND.id,'eazysafe-internal'])).rows[0];
+ return row?{...row,id:Number(row.id),slug:canonicalClientSlug(row.slug)}:null;
 }
 const requestTenant=cache(async()=>{
  const h=await headers();const jar=await cookies();

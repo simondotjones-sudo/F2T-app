@@ -4,7 +4,7 @@ import { notFound,redirect } from 'next/navigation';
 import { learnerForSession } from '@/lib/server';
 import { certificateForToken } from '@/lib/certificate-server';
 export const dynamic='force-dynamic';
-export const metadata={title:'Certificate | EazySAFE',robots:{index:false,follow:false}};
+export const metadata={title:'Certificate | Fit2Trade',robots:{index:false,follow:false}};
 export default async function Page({params}:{params:Promise<{token:string}>}) {
   const learner=await learnerForSession((await cookies()).get('primark_session')?.value);
   if(!learner || learner.admin_only)redirect('/');

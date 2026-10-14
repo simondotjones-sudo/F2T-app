@@ -541,7 +541,7 @@ footer strong{letter-spacing:.08em}
 .organisation-store-filters label{min-width:0}
 
 /* Client branding is supplied on the server before the first paint. */
-:root{--brand:#e8002a;--brand-ink:#e8002a;--brand-contrast:#fff;--brand-hover:#bf0023;--brand-soft:#fff0f3;--brand-border:#f5bec7}
+:root{--brand:#2E6052;--brand-ink:#2E6052;--brand-contrast:#fff;--brand-hover:#264f43;--brand-soft:#eef2f1;--brand-border:#cdd9d5}
 .client-logo{display:block;width:190px;height:46px;object-fit:contain;object-position:left center;max-width:100%;flex:none}
 .brand{display:flex;align-items:center}.blue-button{background:var(--brand)!important;border-color:var(--brand)!important;color:var(--brand-contrast)!important}.blue-button:hover{background:var(--brand-hover)!important}
 .certificate-masthead .client-logo{width:225px;height:55px}.player-wordmark .client-logo{width:135px;height:34px}.verify-brand .client-logo{margin-bottom:10px}
