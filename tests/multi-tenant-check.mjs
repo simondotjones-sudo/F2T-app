@@ -129,7 +129,7 @@ try{
    const fit=await m.tenant.tenantBySlug('fit2trade');assert.equal(fit.id,Number(id));assert.equal(fit.theme_color,'#2E6052');assert.equal(fit.logo_url,'/branding/primark-logo.svg');
    assert.equal((await q('SELECT active FROM public.lms_clients WHERE id=2'))[0].active,false);
    assert.equal((await q("SELECT name FROM lms_tenant_2.learners WHERE id='retained-legacy'"))[0].name,'Retained learner');
-   assert.equal((await query('fit2trade','SELECT * FROM learners')).length,0);
+   assert.equal((await q(`SELECT count(*)::int AS n FROM ${fit.schema_name}.learners`))[0].n,0);
    assert.equal((await m.tenant.tenantBySlug('eazysafe-internal')).id,Number(id));
    await pg.exec(sql);assert.equal((await m.tenant.tenantBySlug('fit2trade')).revision,fit.revision);
   }finally{await pg.exec('ROLLBACK');await q("SELECT setval(pg_get_serial_sequence('public.lms_clients','id'),(SELECT max(id) FROM public.lms_clients),true)");}
